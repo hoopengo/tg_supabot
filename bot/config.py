@@ -1,9 +1,9 @@
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings
 
 
 class Config(BaseSettings):
-    TOKEN: str = Field(env="TOKEN")
+    TOKEN: SecretStr = Field(env="TOKEN")
     ADMIN_IDS: list[int] = [876980354]
 
     class Config:

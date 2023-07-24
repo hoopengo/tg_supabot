@@ -13,6 +13,8 @@ aiogram = {version = "^3.0.0b8", allow-prereleases = true}
 pydantic-settings = "^2.0.2"
 betterlogging = "^0.2.1"
 safetensors = "^0.3.1"
+torch = {extras = ["cuda"], version = "^2.0.1"}
+torchvision = "^0.15.2"
 
 [build-system]
 requires = ["poetry-core"]

@@ -46,7 +46,7 @@ async def main():
 
     storage = MemoryStorage()
 
-    bot = Bot(token=config.TOKEN, parse_mode="HTML")
+    bot = Bot(token=config.TOKEN.get_secret_value(), parse_mode="HTML")
     dp = Dispatcher(storage=storage)
 
     dp.include_routers(*routers_list)

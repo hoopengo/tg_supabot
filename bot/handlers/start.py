@@ -8,7 +8,7 @@ start_sticker_id = "CAACAgIAAxkBAAMfZL6iDIJXXZfl7dd6b_5cDj13Fc8AAlY1AAIqiqFJG21r
 
 
 @start_router.message(CommandStart(ignore_case=True, ignore_mention=True))
-async def _start(message: Message):
+async def _command_start_handler(message: Message):
     # send start sticker
     await message.answer_sticker(start_sticker_id)
 

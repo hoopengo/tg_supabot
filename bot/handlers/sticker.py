@@ -42,7 +42,7 @@ async def _get_sticker_as_file(sticker: Sticker, bot: Bot):
 
 
 @sticker_router.message(F.sticker)
-async def _stick(message: Message, bot: Bot):
+async def _sticker_handler(message: Message, bot: Bot):
     sticker = message.sticker
     # get sticker as file
     converted, file = await _get_sticker_as_file(sticker, bot)

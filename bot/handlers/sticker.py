@@ -15,14 +15,14 @@ sticker_info_texts = [
 ]
 
 
-def get_sticker_info(sticker: Sticker):
+def _get_sticker_info(sticker: Sticker):
     return f"""{random.choice(sticker_info_texts)}
 <b>ID стикера:</b> {sticker.file_id} <u>(локальный)</u>
 <b>Анимирован:</b> {"Да" if sticker.is_animated else "Нет"} 
 <b>Добавить:</b> https://t.me/addstickers/{sticker.set_name}"""
 
 
-async def get_sticker_as_file(sticker: Sticker, bot: Bot):
+async def _get_sticker_as_file(sticker: Sticker, bot: Bot):
     # create BytesIO object
     saved_sticker = BytesIO()
 
@@ -45,10 +45,10 @@ async def get_sticker_as_file(sticker: Sticker, bot: Bot):
 async def _stick(message: Message, bot: Bot):
     sticker = message.sticker
     # get sticker as file
-    converted, file = await get_sticker_as_file(sticker, bot)
+    converted, file = await _get_sticker_as_file(sticker, bot)
 
     # get caption for reply
-    caption = get_sticker_info(sticker)
+    caption = _get_sticker_info(sticker)
 
     # send sticker as file
     if converted:

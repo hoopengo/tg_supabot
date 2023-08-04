@@ -1,5 +1,6 @@
 import logging
-from contextlib import contextmanager
+from contextlib import asynccontextmanager
+from typing import AsyncContextManager
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.ext.declarative import DeclarativeMeta
@@ -20,9 +21,9 @@ Session = async_sessionmaker(
 logger = logging.getLogger(__name__)
 
 
-@contextmanager
-async def session(**kwargs) -> AsyncSession:
-    new_session = Session(**kwargs)
+@asynccontextmanager
+async def session(**kwargs) -> AsyncContextManager[AsyncSession]:
+    new_session: AsyncSession = Session(**kwargs)
     try:
         yield new_session
         await new_session.commit()

@@ -3,11 +3,12 @@ from io import BytesIO
 from pathlib import Path
 from typing import Sequence
 from zipfile import ZIP_DEFLATED, ZipFile
-
-from aiogram import Bot, F, Router, flags
-from aiogram.fsm.state import State, StatesGroup
+from bot.redis import message_cache
+from aiogram import Bot, F, Router, flags, html
 from aiogram.types import BufferedInputFile, CallbackQuery, Message, Sticker, StickerSet
-
+from sqlalchemy import select
+from aiogram.enums.parse_mode import ParseMode
+from bot.db import MessageModel, session
 from bot.keyboards.inline import (
     StickerAction,
     StickerCallbackFactory,
@@ -16,18 +17,15 @@ from bot.keyboards.inline import (
 
 sticker_router = Router()
 
+on_ready_sticker_id = "CAACAgIAAxkBAAIB62TNYBW6aLGpTbftooGX2xsB7peJAAJZLQACy7ypSbKCxiEXCMjlLwQ"
+
 sticker_info_texts = (
-    "<b>Мне нравится этот стикер, акулёнок!</b> Возможно ты хочешь получить некоторую информацию:",
-    "<b>Акулёнок, этот стикер просто супер!</b> Держи информацию:",
-    "<b>Мне кажется этот стикер великолепен, акулёнок!</b> Вот информация по нему:",
-    "<b>Акулёнок, твой выбор божественнен!</b> Вот как я вижу этот стикер:",
-    "<b>Твой выбор великолепен, акулёнок!</b> Информация по стикеру:",
+    r"<b>Мне нравится этот стикер, акулёнок!</b> Возможно ты хочешь получить некоторую информацию:",
+    r"<b>Акулёнок, этот стикер просто супер!</b> Держи информацию:",
+    r"<b>Мне кажется этот стикер великолепен, акулёнок!</b> Вот информация по нему:",
+    r"<b>Акулёнок, твой выбор божественнен!</b> Вот как я вижу этот стикер:",
+    r"<b>Твой выбор великолепен, акулёнок!</b> Информация по стикеру:",
 )
-
-
-class StickerData(StatesGroup):
-    sticker_id = State()
-    set_name = State()
 
 
 def _get_sticker_info(sticker: Sticker) -> str:
@@ -40,17 +38,59 @@ def _get_sticker_info(sticker: Sticker) -> str:
     Returns:
         str: The information about the sticker.
     """
-    return f"""<b>ID стикера:</b> {sticker.file_id} <u>(локальный)</u>
+    return f"""<b>ID стикера:</b> <code>{sticker.file_id}</code> <u>(локальный)</u>
 <b>Анимирован:</b> {"Да" if sticker.is_animated or sticker.is_video else "Нет"}
 <b>Добавить:</b> https://t.me/addstickers/{sticker.set_name}"""
 
 
-async def _get_sticker_as_file(sticker: Sticker) -> tuple[bytes, str]:
+def _get_message_model_as_dict(message_model: MessageModel) -> dict[str, str] | None:
+    """
+    Represent MessageModel as dict
+
+    Args:
+        message_model (MessageModel): The message database object.
+
+    Returns:
+        dict[str, str] | None: A dict containing message_model fields
+            or None if message_model is None.
+    """
+    if message_model is None:
+        return None
+
+    return {
+        "file_id": message_model.file_id,
+        "set_name": message_model.set_name,
+    }
+
+
+async def _get_message_data(message_id: int) -> dict | None:
+    if await message_cache.exists(message_id):
+        return await message_cache.hgetall(message_id)
+
+    async with session() as s:
+        # get MessageModel from postgresql
+        result = (await s.scalars(select(MessageModel).where(MessageModel.id == message_id))).first()
+
+        # check that result exist
+        if result is None:
+            return None
+
+        # get result as dict
+        data = _get_message_model_as_dict(result)
+
+        # set cache
+        await message_cache.hmset(result.id, data)
+
+        # return result as dict
+        return data
+
+
+async def _get_sticker_as_file(sticker: Sticker | str, bot: Bot | None = None) -> tuple[bytes, str]:
     """
     Get a sticker as a file.
 
     Args:
-        sticker (Sticker): The sticker object.
+        sticker (Sticker | str): The sticker object or file_id.
 
     Returns:
         tuple[bytes, str]: A tuple containing saved sticker in bytes, and the sticker filename.
@@ -59,10 +99,17 @@ async def _get_sticker_as_file(sticker: Sticker) -> tuple[bytes, str]:
     saved_sticker = BytesIO()
 
     # get bot
-    bot = sticker.get_mounted_bot()
+    if bot is None:
+        bot = sticker.get_mounted_bot()
+
+    # get file_id
+    if type(sticker) is str:
+        file_id = sticker
+    else:
+        file_id = sticker.file_id
 
     # download sticker
-    sticker_file = await bot.get_file(sticker.file_id)
+    sticker_file = await bot.get_file(file_id)
     await bot.download_file(sticker_file.file_path, saved_sticker)
 
     # convert str to Path
@@ -104,7 +151,6 @@ async def _sticker_handler(message: Message) -> None:
 
     Args:
         message (Message): The sticker message.
-        bot (Bot): The bot object.
 
     """
     sticker = message.sticker
@@ -126,45 +172,71 @@ async def _sticker_handler(message: Message) -> None:
     # get keyboard
     keyboard = get_sticker_keyboard(sticker)
 
+    # make function params
+    function_params = {
+        "caption": caption,
+        "reply_markup": keyboard,
+        "parse_mode": ParseMode.HTML,
+    }
+
     # send sticker as file
     if converted:
-        await message.reply_animation(file, caption=caption, reply_markup=keyboard)
+        reply_message = await message.reply_animation(file, **function_params)
     else:
-        await message.reply_photo(file, caption=caption, reply_markup=keyboard)
+        reply_message = await message.reply_photo(file, **function_params)
+
+    # add data to database
+    if reply_message is None:
+        return
+
+    async with session() as s:
+        s.add(
+            MessageModel(
+                message_id=reply_message.message_id,
+                file_id=sticker.file_id,
+                set_name=sticker.set_name,
+            )
+        )
 
 
-@sticker_router.callback_query(
-    StickerCallbackFactory.filter(F.action == StickerAction.DOWNLOAD)
-)
+@sticker_router.callback_query(StickerCallbackFactory.filter(F.action == StickerAction.DOWNLOAD))
 @flags.chat_action(action="upload_document")
 async def _download_sticker_btn_handler(
     callback: CallbackQuery,
-    callback_data: StickerCallbackFactory,
     bot: Bot,
 ):
-    sticker_bytes, filename = await _get_sticker_as_file(callback_data.sticker_id)
-    file = BufferedInputFile(sticker_bytes, filename)
+    message_data = await _get_message_data(callback.message.message_id)
 
-    await callback.message.reply_document(file)
+    if message_data is None:
+        return await callback.answer(text="Произошла ошибка.")
+
     await callback.answer()
 
+    sticker_bytes, filename = await _get_sticker_as_file(message_data.get("file_id"), bot=bot)
+    file = BufferedInputFile(sticker_bytes, filename)
 
-@sticker_router.callback_query(
-    StickerCallbackFactory.filter(F.action == StickerAction.DOWNLOAD_PACK)
-)
+    await callback.message.reply_document(file, disable_content_type_detection=True)
+
+
+@sticker_router.callback_query(StickerCallbackFactory.filter(F.action == StickerAction.DOWNLOAD_PACK))
 @flags.chat_action(action="upload_document")
 async def _download_pack_btn_handler(
     callback: CallbackQuery,
-    callback_data: StickerCallbackFactory,
     bot: Bot,
 ):
-    if callback_data.set_name is None:
-        await callback.message.reply("У этого стикера нету стикерпака.")
+    message_data = await _get_message_data(callback.message.message_id)
 
-    sticker_set = await bot.get_sticker_set(callback_data.set_name)
+    if message_data is None:
+        return await callback.answer(text="Произошла ошибка.")
+
+    if (sticker_set := await bot.get_sticker_set(message_data.get("set_name"))) is None:
+        return await callback.answer(text="У этого стикера нету стикерпака.")
+
+    await callback.message.answer_sticker(on_ready_sticker_id)
+    await callback.message.answer(text="<b>Я уже работаю над этим акулёнок, дай мне некоторое время!</b>")
+    await callback.answer()
 
     zip_file, filename = await _get_set_as_zip(sticker_set)
     file = BufferedInputFile(zip_file, filename)
 
     await callback.message.reply_document(file)
-    await callback.answer()

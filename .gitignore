@@ -77,3 +77,6 @@ cython_debug/
 .idea/
 poetry.lock
 *.safetensors
+.flake8
+settings
+data

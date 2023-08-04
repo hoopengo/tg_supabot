@@ -5,16 +5,16 @@ description = "SupaBot for somethings"
 authors = ["hoopengo <hoopengo@yandex.ru>"]
 license = "Apache License 2.0"
 readme = "README.md"
-packages = [{include = "tg_supabot"}]
 
 [tool.poetry.dependencies]
 python = "^3.11"
-aiogram = {version = "^3.0.0b8", allow-prereleases = true}
+aiogram = { version = "^3.0.0b8", allow-prereleases = true }
 pydantic-settings = "^2.0.2"
 betterlogging = "^0.2.1"
-safetensors = "^0.3.1"
-torch = {extras = ["cuda"], version = "^2.0.1"}
-torchvision = "^0.15.2"
+happyaccidentsapi = { version = "^0.0.2", allow-prereleases = true }
+sqlalchemy = { extras = ["asyncio"], version = "^2.0.19" }
+alembic = "^1.11.1"
+asyncpg = "^0.28.0"
 
 [build-system]
 requires = ["poetry-core"]

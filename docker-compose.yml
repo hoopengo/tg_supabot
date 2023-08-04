@@ -1,0 +1,51 @@
+version: "3.9"
+
+services:
+  db:
+    restart: always
+    hostname: db
+    build:
+      context: .
+      dockerfile: ./docker/postgres.Dockerfile
+    env_file:
+      - ./settings/db.env
+    volumes:
+      - ./data/postgres-data:/var/lib/postgresql/data
+
+  cache:
+    image: redis:7-alpine
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 1m
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    command: redis-server --save 20 1 --loglevel warning
+    volumes:
+      - ./data/cache:/data
+
+  bot:
+    build:
+      context: .
+      dockerfile: ./docker/bot.Dockerfile
+    restart: always
+    env_file:
+      - ./settings/db.env
+      - ./settings/bot.env
+    environment:
+      POSTGRES_HOST: db
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./data/logs:/usr/src/app/bot/logs
+      - ./src/alembic/versions:/usr/src/app/alembic/versions
+
+volumes:
+  cache:
+    driver: local
+
+networks:
+  default:
+    driver: bridge

@@ -2,6 +2,8 @@ from aiogram import Router
 from aiogram.filters import CommandStart
 from aiogram.types import Message
 
+from bot.keyboards.reply import menu_kb
+
 start_router = Router()
 
 start_sticker_id = "CAACAgIAAxkBAAMfZL6iDIJXXZfl7dd6b_5cDj13Fc8AAlY1AAIqiqFJG21rvpgD4GQvBA"
@@ -13,4 +15,7 @@ async def _command_start_handler(message: Message):
     await message.answer_sticker(start_sticker_id)
 
     # send start message
-    await message.answer("<b>Привет, акулёнок!</b> Снизу ты увидишь кнопочки, не хочешь их потыгыдыкать? 💕")
+    await message.answer(
+        "<b>Привет, акулёнок!</b> Снизу появились кнопочки, не хочешь их потыгыдыкать? 💕",
+        reply_markup=menu_kb,
+    )

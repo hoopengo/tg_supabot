@@ -1,0 +1,14 @@
+.DS_Store
+.venv
+.idea
+.vscode
+
+__pycache__
+
+*.pyc
+.git
+.gitignore
+
+logs
+data
+cache

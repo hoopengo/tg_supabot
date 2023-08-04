@@ -4,6 +4,7 @@ import logging
 import betterlogging as bl
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.utils.chat_action import ChatActionMiddleware
 
 from bot.config import config
 from bot.handlers import routers_list
@@ -11,6 +12,7 @@ from bot.services import broadcaster
 
 
 async def on_startup(bot: Bot):
+    await bot.delete_webhook(drop_pending_updates=True)
     await broadcaster.broadcast(bot, config.ADMIN_IDS, "Бот был запущен")
 
 
@@ -50,9 +52,10 @@ async def main():
     dp = Dispatcher(storage=storage)
 
     dp.include_routers(*routers_list)
+    dp.message.middleware(ChatActionMiddleware())
 
     await on_startup(bot)
-    await dp.start_polling(bot)
+    await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
 
 
 if __name__ == "__main__":

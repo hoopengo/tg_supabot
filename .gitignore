@@ -80,3 +80,4 @@ poetry.lock
 .flake8
 settings
 data
+.model-precision

@@ -45,6 +45,17 @@ services:
       - ./data/logs:/usr/src/app/bot/logs
       - ./src/alembic/versions:/usr/src/app/alembic/versions
 
+  adminer:
+    image: adminer
+    restart: always
+    env_file:
+      - ./settings/bot.env
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   cache:
     driver: local

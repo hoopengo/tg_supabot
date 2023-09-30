@@ -1,4 +1,4 @@
-FROM python:3.11.4-slim-buster
+FROM python:3.11.5-slim-bookworm
 
 ENV PYTHONFAULTHANDLER=1 \
     PYTHONUNBUFFERED=1 \
@@ -9,7 +9,7 @@ ENV PYTHONFAULTHANDLER=1 \
     PIP_DEFAULT_TIMEOUT=100 \
     POETRY_VERSION=1.5.1 \
     DISABLE_POETRY_CREATE_RUNTIME_FILE=1 \
-    PYTHON_RUNTIME_VERSION=3.11.4
+    PYTHON_RUNTIME_VERSION=3.11.5
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \

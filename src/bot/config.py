@@ -3,15 +3,15 @@ from pydantic_settings import BaseSettings
 
 
 class Config(BaseSettings):
-    TOKEN: SecretStr = Field(env="TOKEN")
+    TOKEN: SecretStr = Field()
     ADMIN_IDS: list[int] = [876980354]
-    POSTGRES_USER: str = Field(env="POSTGRES_USER")
-    POSTGRES_PASSWORD: str = Field(env="POSTGRES_PASSWORD")
-    POSTGRES_DB: str = Field(env="POSTGRES_DB")
-    POSTGRES_HOST: str = Field(env="POSTGRES_HOST")
-    POSTGRES_PORT: str = Field(env="POSTGRES_PORT")
-    REDIS_HOST: str = Field(env="REDIS_HOST")
-    REDIS_PORT: int = Field(env="REDIS_PORT")
+    POSTGRES_USER: str = Field()
+    POSTGRES_PASSWORD: str = Field()
+    POSTGRES_DB: str = Field()
+    POSTGRES_HOST: str = Field()
+    POSTGRES_PORT: str = Field()
+    REDIS_HOST: str = Field()
+    REDIS_PORT: int = Field()
 
     class Config:
         case_sensitive = False

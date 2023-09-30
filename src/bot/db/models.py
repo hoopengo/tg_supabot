@@ -1,12 +1,13 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, Boolean, BigInteger, DateTime
 
 from bot.db.base import Base
+from datetime import datetime, timedelta
 
 
-class MessageModel(Base):
-    __tablename__ = "message"
+class StickerMessageModel(Base):
+    __tablename__ = "sticker_message"
 
-    id = Column(Integer, unique=True, primary_key=True, index=True, nullable=False)
+    id = Column(BigInteger, unique=True, primary_key=True, index=True, nullable=False)
     file_id = Column(String, unique=True, nullable=False)
     set_name = Column(String, nullable=False)
 
@@ -33,17 +34,23 @@ class MessageModel(Base):
         }
 
     def __repr__(self):
-        return f"<Message {self.id}>"
+        return f"<StickerMessage {self.id}>"
 
 
 class UserModel(Base):
     __tablename__ = "user"
 
-    id = Column(Integer, unique=True, primary_key=True, index=True, nullable=False)
-    ha_token = Column(String, nullable=True)  # happy accidents token
+    id = Column(Integer, primary_key=True)
+    chat_id = Column(BigInteger, nullable=False)
+    user_id = Column(BigInteger, nullable=False)
 
-    def __init__(self, message_id: int):
-        self.id = message_id
+    sanitary_last = Column(Boolean, default=False)
+    penis_size = Column(Integer, default=0, index=True)
+    last_penis_update = Column(DateTime, default=datetime.utcnow() - timedelta(hours=12))
+
+    def __init__(self, chat_id: int, user_id: int):
+        self.chat_id = chat_id
+        self.user_id = user_id
 
     def __repr__(self):
         return f"<User {self.id}>"

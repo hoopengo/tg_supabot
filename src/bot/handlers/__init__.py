@@ -10,7 +10,7 @@ routers_list = (
     sticker_router,
     mentions_router,
     penis_router,
-sanitary_router,
+    sanitary_router,
 )
 
 __all__ = [

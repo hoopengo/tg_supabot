@@ -71,6 +71,7 @@ async def _command_top_dick_handler(message: Message):
 
     for v, user in enumerate(users, 1):
         if user.penis_size == 0:
+            print(user.id, user.penis_size)
             continue
 
         member = await message.chat.get_member(user.user_id)

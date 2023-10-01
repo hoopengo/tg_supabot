@@ -1,7 +1,9 @@
-from bot.db import session, UserModel, StickerMessageModel
-from sqlalchemy import select, func
-from bot.redis import message_cache
 from datetime import datetime
+
+from sqlalchemy import func, select
+
+from bot.db import StickerMessageModel, UserModel, session
+from bot.redis import message_cache
 
 
 async def get_next_sanitaries(chat_id: int, count: int = 2):
@@ -12,7 +14,9 @@ async def get_next_sanitaries(chat_id: int, count: int = 2):
         result = (
             await s.scalars(
                 select(UserModel)
-                .where(UserModel.chat_id == chat_id, UserModel.sanitary_last == False)  # noqa
+                .where(
+                    UserModel.chat_id == chat_id, UserModel.sanitary_last == False
+                )  # noqa
                 .order_by(func.random())
                 .limit(count)
             )
@@ -21,7 +25,10 @@ async def get_next_sanitaries(chat_id: int, count: int = 2):
         if len(result) < count:
             result = (
                 await s.scalars(
-                    select(UserModel).where(UserModel.chat_id == chat_id).order_by(func.random()).limit(count)
+                    select(UserModel)
+                    .where(UserModel.chat_id == chat_id)
+                    .order_by(func.random())
+                    .limit(count)
                 )
             ).all()
 
@@ -30,7 +37,9 @@ async def get_next_sanitaries(chat_id: int, count: int = 2):
 
         deprecated_sanitaries = (
             await s.scalars(
-                select(UserModel).where(UserModel.chat_id == chat_id, UserModel.sanitary_last == True)
+                select(UserModel).where(
+                    UserModel.chat_id == chat_id, UserModel.sanitary_last == True
+                )
             )  # noqa
         ).all()
 
@@ -43,11 +52,16 @@ async def get_next_sanitaries(chat_id: int, count: int = 2):
         return result
 
 
-async def get_members(chat_id: int, limit: int | None = None):
+async def get_members(
+    chat_id: int, limit: int | None = None
+) -> tuple[UserModel] | None:
     async with session() as s:
         result = (
             await s.scalars(
-                select(UserModel).where(UserModel.chat_id == chat_id).order_by(UserModel.penis_size.desc()).limit(limit)
+                select(UserModel)
+                .where(UserModel.chat_id == chat_id)
+                .order_by(UserModel.penis_size.desc())
+                .limit(limit)
             )
         ).all()
 
@@ -90,7 +104,11 @@ async def last_penis_update_now(
 ) -> UserModel:
     async with session() as s:
         result: UserModel = (
-            await s.scalars(select(UserModel).where(UserModel.user_id == user_id, UserModel.chat_id == chat_id))
+            await s.scalars(
+                select(UserModel).where(
+                    UserModel.user_id == user_id, UserModel.chat_id == chat_id
+                )
+            )
         ).first()
 
         result.last_penis_update = datetime.utcnow()
@@ -106,7 +124,11 @@ async def update_dick_size(
 ):
     async with session() as s:
         result: UserModel = (
-            await s.scalars(select(UserModel).where(UserModel.user_id == user_id, UserModel.chat_id == chat_id))
+            await s.scalars(
+                select(UserModel).where(
+                    UserModel.user_id == user_id, UserModel.chat_id == chat_id
+                )
+            )
         ).first()
 
         result.penis_size += append_size
@@ -119,7 +141,11 @@ async def get_message_data(message_id: int) -> dict | None:
 
     async with session() as s:
         # get MessageModel from postgresql
-        result = (await s.scalars(select(StickerMessageModel).where(StickerMessageModel.id == message_id))).first()
+        result = (
+            await s.scalars(
+                select(StickerMessageModel).where(StickerMessageModel.id == message_id)
+            )
+        ).first()
 
         # check that result exist
         if result is None:

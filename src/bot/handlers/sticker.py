@@ -104,7 +104,7 @@ async def _get_stickers_as_bytes(stickers: Sequence[Sticker]):
 
 @sticker_router.message(F.sticker & F.chat.type == "private")
 @flags.chat_action(action="choose_sticker")
-async def _sticker_handler(message: Message) -> None:
+async def _sticker_handler(message: Message, bot: Bot) -> None:
     """
     Handle a sticker message.
 
@@ -115,7 +115,7 @@ async def _sticker_handler(message: Message) -> None:
     sticker = message.sticker
 
     # get stickerfile options
-    sticker_bytes, filename = await _get_sticker_as_file(sticker)
+    sticker_bytes, filename = await _get_sticker_as_file(sticker, bot=bot)
 
     # change .webm suffix to .gif suffix
     converted = sticker.is_video or sticker.is_animated

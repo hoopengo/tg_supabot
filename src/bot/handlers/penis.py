@@ -23,7 +23,7 @@ penis_router = Router()
 
 @contextmanager
 def stats_to_image(users: Sequence[dict[str, str | int]]) -> bytes:
-    fig, ax = plt.subplots(figsize=(6, 3), subplot_kw=dict(aspect="equal"))
+    fig, ax = plt.subplots(figsize=(8, 5), subplot_kw=dict(aspect="equal"))
 
     labels = [user.get("name") for user in users]
     sizes = [user.get("size") for user in users]
@@ -31,7 +31,7 @@ def stats_to_image(users: Sequence[dict[str, str | int]]) -> bytes:
     wedges, texts = ax.pie(
         sizes,
         wedgeprops=dict(width=0.5),
-        startangle=90,
+        startangle=-45,
     )
 
     bbox_props = dict(boxstyle="square,pad=0.3", fc="w", ec="k", lw=0.72)

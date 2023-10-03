@@ -28,7 +28,7 @@ def stats_to_image(users: Sequence[dict[str, str | int]]) -> bytes:
     labels = [user.get("name") for user in users]
     sizes = [user.get("size") for user in users]
 
-    wedges, texts = ax.pie(
+    wedges, _ = ax.pie(
         sizes,
         wedgeprops=dict(width=0.5),
         startangle=-45,
@@ -106,7 +106,7 @@ async def _command_stats_handler(message: Message):
 async def _command_dick_handler(message: Message):
     user = await get_or_create_user(message.from_user.id, message.chat.id)
 
-    seconds_after = 43200 - (datetime.utcnow() - user.last_penis_update).seconds
+    seconds_after = 43200 - int((datetime.utcnow() - user.last_penis_update).total_seconds())
     if seconds_after >= 0:
         next_attempt = timedelta(seconds=seconds_after)
 

@@ -1,7 +1,8 @@
-from sqlalchemy import Column, Integer, String, Boolean, BigInteger, DateTime
+from datetime import datetime, timedelta
+
+from sqlalchemy import BigInteger, Boolean, Column, DateTime, Integer, String
 
 from bot.db.base import Base
-from datetime import datetime, timedelta
 
 
 class StickerMessageModel(Base):
@@ -46,7 +47,9 @@ class UserModel(Base):
 
     sanitary_last = Column(Boolean, default=False)
     penis_size = Column(Integer, default=0, index=True)
-    last_penis_update = Column(DateTime, default=datetime.utcnow() - timedelta(hours=12))
+    last_penis_update = Column(
+        DateTime, default=datetime.utcnow() - timedelta(hours=12)
+    )
 
     def __init__(self, chat_id: int, user_id: int):
         self.chat_id = chat_id

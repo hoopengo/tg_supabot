@@ -44,7 +44,7 @@ def _get_sticker_info(sticker: Sticker) -> str:
 <b>Добавить:</b> https://t.me/addstickers/{sticker.set_name}"""
 
 
-async def _get_sticker_as_file(sticker: Sticker | str, bot: Bot | None = None) -> tuple[bytes, str]:
+async def _get_sticker_as_file(sticker: Sticker | str, bot: Bot) -> tuple[bytes, str]:
     """
     Get a sticker as a file.
 
@@ -56,10 +56,6 @@ async def _get_sticker_as_file(sticker: Sticker | str, bot: Bot | None = None) -
     """
     # create BytesIO object
     saved_sticker = BytesIO()
-
-    # get bot
-    if bot is None:
-        bot = sticker.get_mounted_bot()
 
     # get file_id
     if type(sticker) is str:
@@ -78,8 +74,8 @@ async def _get_sticker_as_file(sticker: Sticker | str, bot: Bot | None = None) -
     return saved_sticker.getvalue(), filename.name
 
 
-async def _get_set_as_zip(sticker_set: StickerSet):
-    stickers_files = await _get_stickers_as_bytes(sticker_set.stickers)
+async def _get_set_as_zip(sticker_set: StickerSet, bot):
+    stickers_files = await _get_stickers_as_bytes(sticker_set.stickers, bot)
 
     zip_buffer = BytesIO()
     with ZipFile(zip_buffer, mode="w", compression=ZIP_DEFLATED) as zip_file:
@@ -93,10 +89,10 @@ async def _get_set_as_zip(sticker_set: StickerSet):
     return zip_buffer.getvalue(), filename
 
 
-async def _get_stickers_as_bytes(stickers: Sequence[Sticker]):
+async def _get_stickers_as_bytes(stickers: Sequence[Sticker], bot: Bot):
     stickers_files = set()
     for sticker in stickers:
-        bytes_, name = await _get_sticker_as_file(sticker)
+        bytes_, name = await _get_sticker_as_file(sticker, bot)
         stickers_files.add((bytes_, name))
 
     return stickers_files
@@ -189,7 +185,7 @@ async def _download_pack_btn_handler(callback: CallbackQuery, bot: Bot):
     await callback.message.answer(text="<b>Я уже работаю над этим акулёнок, дай мне некоторое время!</b>")
     await callback.answer()
 
-    zip_file, filename = await _get_set_as_zip(sticker_set)
+    zip_file, filename = await _get_set_as_zip(sticker_set, bot)
     file = BufferedInputFile(zip_file, filename)
 
     await callback.message.reply_document(file)

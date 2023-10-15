@@ -3,12 +3,12 @@ from contextlib import contextmanager
 from datetime import datetime, timedelta
 from io import BytesIO
 from typing import Sequence
-
+from aiogram.exceptions import TelegramBadRequest
 import numpy as np
 import pylab as plt
 from aiogram import F, Router
 from aiogram.filters import Command
-from aiogram.types import BufferedInputFile, Message
+from aiogram.types import BufferedInputFile, Message, Chat
 
 from bot.db.methods import (
     get_members,
@@ -20,6 +20,22 @@ from bot.db.methods import (
 
 penis_router = Router()
 
+async def get_dick_stats(chat: Chat):
+    users = await get_members(chat.id, limit=10)
+    result = []
+
+    for v, user in enumerate(users, 1):
+        if user.penis_size == 0:
+            continue
+
+        try:
+            obj = {"member": await chat.get_member(user.user_id), "user": user}
+        except TelegramBadRequest:
+            pass
+        else:
+            result.append(obj)
+
+    return result
 
 @contextmanager
 def stats_to_image(users: Sequence[dict[str, str | int]]) -> bytes:
@@ -66,15 +82,13 @@ def stats_to_image(users: Sequence[dict[str, str | int]]) -> bytes:
 
 @penis_router.message(Command("top_dick", ignore_case=True), F.chat.type != "private")
 async def _command_top_dick_handler(message: Message):
-    users = await get_members(message.chat.id, limit=10)
     users_statistic = []
 
-    for v, user in enumerate(users, 1):
-        if user.penis_size == 0:
-            print(user.id, user.penis_size)
-            continue
+    members = await get_dick_stats(message.chat)
+    for v, obj in enumerate(members, 1):
+        member = obj.get("member")
+        user = obj.get("user")
 
-        member = await message.chat.get_member(user.user_id)
         users_statistic.append(
             f"<b>{v}|{member.user.full_name} — {user.penis_size}</b>"
         )
@@ -84,14 +98,13 @@ async def _command_top_dick_handler(message: Message):
 
 @penis_router.message(Command("stats", ignore_case=True), F.chat.type != "private")
 async def _command_stats_handler(message: Message):
-    users = await get_members(message.chat.id, limit=10)
     users_statistic = []
 
-    for v, user in enumerate(users, 1):
-        if user.penis_size == 0:
-            continue
+    members = await get_dick_stats(message.chat)
+    for v, obj in enumerate(members, 1):
+        member = obj.get("member")
+        user = obj.get("user")
 
-        member = await message.chat.get_member(user.user_id)
         users_statistic.append(
             {"name": member.user.full_name, "rank": v, "size": user.penis_size}
         )

@@ -18,7 +18,7 @@ async def minus_penis_cron(bot: Bot):
         chats[user.chat_id].append(user)
 
     for chat_id, user_members in chats.items():
-        random_members = select_random_members(user_members, 3)
+        random_members = random.sample(user_members, 3)
         list_members = []
 
         for member in random_members:
@@ -38,10 +38,3 @@ async def minus_penis_cron(bot: Bot):
         message_text = f"Сегодняшние счастливчики: \
 {', '.join([f'{member_data[0].user.mention_html()} ({member_data[1]} см)' for member_data in list_members])}"
         await bot.send_message(chat_id=chat_id, text=message_text)
-
-
-def select_random_members(members, count):
-    """
-    This function selects a specified number of random members from a list.
-    """
-    return [random.choice(members) for _ in range(count)]

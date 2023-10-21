@@ -5,15 +5,28 @@ import betterlogging as bl
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.utils.chat_action import ChatActionMiddleware
-
 from bot.config import config
 from bot.handlers import routers_list
-from bot.services import broadcaster
+from bot.services import broadcaster, apshed
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 
 async def on_startup(bot: Bot):
     await bot.delete_webhook(drop_pending_updates=True)
     await broadcaster.broadcast(bot, config.ADMIN_IDS, "Бот был запущен")
+
+
+def setup_scheduler(bot: Bot):
+    scheduler = AsyncIOScheduler(timezone="Europe/Moscow")
+    scheduler.add_job(
+        apshed.minus_penis_cron,
+        trigger="cron",
+        day_of_week="mon-sun",
+        hour=16,
+        minute=00,
+        kwargs={"bot": bot},
+    )
+    scheduler.start()
 
 
 def setup_logging():
@@ -49,6 +62,7 @@ async def main():
     storage = MemoryStorage()
 
     bot = Bot(token=config.TOKEN.get_secret_value(), parse_mode="HTML")
+    setup_scheduler(bot)
     dp = Dispatcher(storage=storage)
 
     dp.include_routers(*routers_list)

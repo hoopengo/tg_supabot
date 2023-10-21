@@ -17,6 +17,11 @@ alembic = "^1.11.1"
 asyncpg = "^0.28.0"
 redis = {extras = ["hiredis"], version = "^4.6.0"}
 matplotlib = "^3.8.0"
+apscheduler = "^3.10.4"
+
+[tool.poetry.group.dev.dependencies]
+black = "^23.10.0"
+flake8 = "^6.1.0"
 
 [build-system]
 requires = ["poetry-core"]

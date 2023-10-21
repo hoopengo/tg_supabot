@@ -9,15 +9,21 @@ from sqlalchemy.pool import QueuePool
 
 from bot.config import config
 
+postgres_url = (
+    f"postgresql+asyncpg://"
+    f"{config.POSTGRES_USER}:"
+    f"{config.POSTGRES_PASSWORD}@"
+    f"{config.POSTGRES_HOST}:"
+    f"{config.POSTGRES_PORT}/"
+    f"{config.POSTGRES_DB}"
+)
 engine = create_async_engine(
-    f"postgresql+asyncpg://{config.POSTGRES_USER}:{config.POSTGRES_PASSWORD}@{config.POSTGRES_HOST}:{config.POSTGRES_PORT}/{config.POSTGRES_DB}",
+    postgres_url,
     echo=True,
     poolclass=QueuePool,
 )
 Base: DeclarativeMeta = declarative_base()
-Session = async_sessionmaker(
-    bind=engine, autocommit=False, autoflush=False, expire_on_commit=False
-)
+Session = async_sessionmaker(bind=engine, autocommit=False, autoflush=False, expire_on_commit=False)
 logger = logging.getLogger(__name__)
 
 

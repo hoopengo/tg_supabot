@@ -144,9 +144,9 @@ async def get_message_data(message_id: int) -> dict | None:
         return data
 
 
-async def get_all_users():
+async def get_rating_users():
     async with session() as s:
-        result = (await s.scalars(select(UserModel))).all()
+        result = (await s.scalars(select(UserModel).where(UserModel.penis_size != 0))).all()
         return result
 
 

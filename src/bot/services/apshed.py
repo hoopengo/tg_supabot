@@ -4,14 +4,14 @@ from collections import defaultdict
 
 from aiogram import Bot
 
-from bot.db.methods import get_all_users, update_dick_size
+from bot.db.methods import get_rating_users, update_dick_size
 
 
 async def minus_penis_cron(bot: Bot):
     """
     This function selects three random users from each chat and decreases their "dick_size" attribute.
     """
-    users = await get_all_users()
+    users = await get_rating_users()
 
     chats = defaultdict(list)
     for user in users:
@@ -26,7 +26,7 @@ async def minus_penis_cron(bot: Bot):
             if tg_member is None or tg_member.status in ["left", "kicked"]:
                 continue
 
-            dec = random.randint(-10, -3)
+            dec = random.randint(-10, 10)
             try:
                 await update_dick_size(member.user_id, chat_id, dec)
             except Exception as e:

@@ -12,6 +12,8 @@ class Config(BaseSettings):
     POSTGRES_PORT: str = Field()
     REDIS_HOST: str = Field()
     REDIS_PORT: int = Field()
+    HF_TOKEN: str = Field()
+    BASE_TOXICITY_ENCOURAGE: float = 0.8
 
     class Config:
         case_sensitive = False

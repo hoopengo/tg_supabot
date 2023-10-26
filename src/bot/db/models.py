@@ -47,9 +47,8 @@ class UserModel(Base):
 
     sanitary_last = Column(Boolean, default=False)
     penis_size = Column(Integer, default=0, index=True)
-    last_penis_update = Column(
-        DateTime, default=datetime.utcnow() - timedelta(hours=12)
-    )
+    last_penis_update = Column(DateTime, default=datetime.utcnow() - timedelta(hours=12))
+    toxicity_level = Column(Integer, default=0, nullable=False)
 
     def __init__(self, chat_id: int, user_id: int):
         self.chat_id = chat_id

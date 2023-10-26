@@ -1,8 +1,8 @@
-from aiogram import Router, F
+from aiogram import F, Router
 from aiogram.filters import CommandStart
 from aiogram.types import Message, ReplyKeyboardRemove
 
-from bot.db.methods import get_user, add_user
+from bot.db.methods import add_user, get_user
 
 start_router = Router()
 

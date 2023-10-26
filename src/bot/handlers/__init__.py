@@ -4,6 +4,7 @@ from bot.handlers.sticker import sticker_router
 from bot.handlers.mentions import mentions_router
 from bot.handlers.penis import penis_router
 from bot.handlers.sanitary import sanitary_router
+from bot.handlers.toxicity_control import toxicity_router
 
 routers_list = (
     start_router,
@@ -11,6 +12,7 @@ routers_list = (
     mentions_router,
     penis_router,
     sanitary_router,
+    toxicity_router,
 )
 
 __all__ = [

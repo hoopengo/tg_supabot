@@ -1,4 +1,4 @@
-FROM python:3.11.5-slim-bookworm
+FROM python:3.11.6-slim-bookworm
 
 ENV PYTHONFAULTHANDLER=1 \
     PYTHONUNBUFFERED=1 \
@@ -7,9 +7,9 @@ ENV PYTHONFAULTHANDLER=1 \
     PIP_NO_CACHE_DIR=off \
     PIP_DISABLE_PIP_VERSION_CHECK=on \
     PIP_DEFAULT_TIMEOUT=100 \
-    POETRY_VERSION=1.5.1 \
+    POETRY_VERSION=1.6.1 \
     DISABLE_POETRY_CREATE_RUNTIME_FILE=1 \
-    PYTHON_RUNTIME_VERSION=3.11.5
+    PYTHON_RUNTIME_VERSION=3.11.6
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \

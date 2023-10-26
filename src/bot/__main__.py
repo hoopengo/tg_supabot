@@ -5,10 +5,13 @@ import betterlogging as bl
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.utils.chat_action import ChatActionMiddleware
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
 from bot.config import config
 from bot.handlers import routers_list
-from bot.services import broadcaster, apshed
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from bot.middlewares.toxity_middleware import ToxityMessageMiddleware
+from bot.middlewares.user_exist import UserExistCallbackMiddleware
+from bot.services import apshed, broadcaster
 
 
 async def on_startup(bot: Bot):
@@ -65,7 +68,12 @@ async def main():
     setup_scheduler(bot)
     dp = Dispatcher(storage=storage)
 
+    # routers register
     dp.include_routers(*routers_list)
+
+    # middlewares register
+    dp.message.outer_middleware(UserExistCallbackMiddleware())
+    dp.message.outer_middleware(ToxityMessageMiddleware())
     dp.message.middleware(ChatActionMiddleware())
 
     await on_startup(bot)

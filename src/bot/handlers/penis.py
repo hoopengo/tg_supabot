@@ -19,6 +19,8 @@ from bot.db.methods import (
 )
 
 penis_router = Router()
+penis_router.message.filter(F.chat.type != "private")
+
 
 async def get_dick_stats(chat: Chat):
     users = await get_members(chat.id, limit=10)
@@ -36,6 +38,7 @@ async def get_dick_stats(chat: Chat):
             result.append(obj)
 
     return result
+
 
 @contextmanager
 def stats_to_image(users: Sequence[dict[str, str | int]]) -> bytes:
@@ -89,9 +92,7 @@ async def _command_top_dick_handler(message: Message):
         member = obj.get("member")
         user = obj.get("user")
 
-        users_statistic.append(
-            f"<b>{v}|{member.user.full_name} — {user.penis_size}</b>"
-        )
+        users_statistic.append(f"<b>{v}|{member.user.full_name} — {user.penis_size}</b>")
 
     await message.answer("Топ 10 игроков\n" + "\n".join(users_statistic))
 
@@ -105,14 +106,10 @@ async def _command_stats_handler(message: Message):
         member = obj.get("member")
         user = obj.get("user")
 
-        users_statistic.append(
-            {"name": member.user.full_name, "rank": v, "size": user.penis_size}
-        )
+        users_statistic.append({"name": member.user.full_name, "rank": v, "size": user.penis_size})
 
     with stats_to_image(users_statistic) as image_bytes:
-        await message.answer_photo(
-            BufferedInputFile(image_bytes, "stats-diagram-image")
-        )
+        await message.answer_photo(BufferedInputFile(image_bytes, "stats-diagram-image"))
 
 
 @penis_router.message(Command("dick", ignore_case=True), F.chat.type != "private")

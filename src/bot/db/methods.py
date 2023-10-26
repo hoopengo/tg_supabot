@@ -1,6 +1,7 @@
 from datetime import datetime
+from typing import Sequence
 
-from sqlalchemy import func, select
+from sqlalchemy import exists, func, select
 
 from bot.db import StickerMessageModel, UserModel, session
 from bot.redis import message_cache
@@ -45,14 +46,11 @@ async def get_next_sanitaries(chat_id: int, count: int = 2):
         return result
 
 
-async def get_members(chat_id: int, limit: int | None = None) -> tuple[UserModel] | None:
+async def get_members(chat_id: int, limit: int | None = None) -> Sequence[UserModel] | None:
     async with session() as s:
         result = (
             await s.scalars(
-                select(UserModel)
-                .where(UserModel.chat_id == chat_id)
-                .order_by(UserModel.penis_size.desc())
-                .limit(limit)
+                select(UserModel).where(UserModel.chat_id == chat_id).order_by(UserModel.penis_size.desc()).limit(limit)
             )
         ).all()
 
@@ -76,6 +74,12 @@ async def add_user(user_id: int, chat_id: int) -> None:
                 user_id=user_id,
             )
         )
+
+
+async def user_exist(user_id: int, chat_id: int) -> bool:
+    async with session() as s:
+        user_exists = await s.scalar(select(exists().where(UserModel.user_id == user_id, UserModel.chat_id == chat_id)))
+        return user_exists
 
 
 async def get_user(user_id: int, chat_id: int):
@@ -118,6 +122,24 @@ async def update_dick_size(
 
         if result.penis_size < 0:
             result.penis_size = 0
+
+        await s.commit()
+
+
+async def update_toxicity_level(
+    user_id: int,
+    chat_id: int,
+    count: int,
+):
+    async with session() as s:
+        result: UserModel = (
+            await s.scalars(select(UserModel).where(UserModel.user_id == user_id, UserModel.chat_id == chat_id))
+        ).first()
+
+        result.toxicity_level += count
+
+        if result.toxicity_level < 0:
+            result.toxicity_level = 0
 
         await s.commit()
 

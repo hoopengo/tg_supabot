@@ -18,7 +18,5 @@ class UserExistCallbackMiddleware(BaseMiddleware):
                 await add_user(event.from_user.id, event.chat.id)
             except Exception as err:
                 return await event.answer(f"Произошла ошибка: {err}")
-            else:
-                await event.answer(f"Ты был насильно зарегестрирован в системе под id: {event.from_user.id}")
 
         return await handler(event, data)

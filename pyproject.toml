@@ -7,7 +7,7 @@ license = "Apache License 2.0"
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = "^3.11"
 aiogram = { version = "^3.0.0b8", allow-prereleases = true }
 pydantic-settings = "^2.0.2"
 betterlogging = "^0.2.1"

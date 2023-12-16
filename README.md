@@ -1,2 +1,2 @@
-# tg_supabot
-My bot for somethings
+# tg supabot
+[Demo](https://t.me/hotbebrasbot)

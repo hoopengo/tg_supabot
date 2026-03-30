@@ -18,7 +18,9 @@ from bot.keyboards.inline import (
 
 sticker_router = Router()
 
-on_ready_sticker_id = "CAACAgIAAxkBAAIB62TNYBW6aLGpTbftooGX2xsB7peJAAJZLQACy7ypSbKCxiEXCMjlLwQ"
+on_ready_sticker_id = (
+    "CAACAgIAAxkBAAIB62TNYBW6aLGpTbftooGX2xsB7peJAAJZLQACy7ypSbKCxiEXCMjlLwQ"
+)
 
 sticker_info_texts = (
     r"<b>Мне нравится этот стикер, акулёнок!</b> Возможно ты хочешь получить некоторую информацию:",
@@ -154,7 +156,9 @@ async def _sticker_handler(message: Message, bot: Bot) -> None:
         )
 
 
-@sticker_router.callback_query(StickerCallbackFactory.filter(F.action == StickerAction.DOWNLOAD))
+@sticker_router.callback_query(
+    StickerCallbackFactory.filter(F.action == StickerAction.DOWNLOAD)
+)
 @flags.chat_action(action="upload_document")
 async def _download_sticker_btn_handler(callback: CallbackQuery, bot: Bot):
     message_data = await get_message_data(callback.message.message_id)
@@ -164,13 +168,17 @@ async def _download_sticker_btn_handler(callback: CallbackQuery, bot: Bot):
 
     await callback.answer()
 
-    sticker_bytes, filename = await _get_sticker_as_file(message_data.get("file_id"), bot=bot)
+    sticker_bytes, filename = await _get_sticker_as_file(
+        message_data.get("file_id"), bot=bot
+    )
     file = BufferedInputFile(sticker_bytes, filename)
 
     await callback.message.reply_document(file, disable_content_type_detection=True)
 
 
-@sticker_router.callback_query(StickerCallbackFactory.filter(F.action == StickerAction.DOWNLOAD_PACK))
+@sticker_router.callback_query(
+    StickerCallbackFactory.filter(F.action == StickerAction.DOWNLOAD_PACK)
+)
 @flags.chat_action(action="upload_document")
 async def _download_pack_btn_handler(callback: CallbackQuery, bot: Bot):
     message_data = await get_message_data(callback.message.message_id)
@@ -182,7 +190,10 @@ async def _download_pack_btn_handler(callback: CallbackQuery, bot: Bot):
         return await callback.answer(text="У этого стикера нету стикерпака.")
 
     await callback.message.answer_sticker(on_ready_sticker_id)
-    await callback.message.answer(text="<b>Я уже работаю над этим акулёнок, дай мне некоторое время!</b>")
+    await callback.message.answer(
+        text="<b>Я уже работаю над этим акулёнок, дай мне некоторое время!</b>",
+        parse_mode=ParseMode.HTML,
+    )
     await callback.answer()
 
     zip_file, filename = await _get_set_as_zip(sticker_set, bot)

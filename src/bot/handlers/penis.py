@@ -7,6 +7,7 @@ from aiogram.exceptions import TelegramBadRequest
 import numpy as np
 import pylab as plt
 from aiogram import F, Router
+from aiogram.enums import ParseMode
 from aiogram.filters import Command
 from aiogram.types import BufferedInputFile, Message, Chat
 
@@ -92,9 +93,13 @@ async def _command_top_dick_handler(message: Message):
         member = obj.get("member")
         user = obj.get("user")
 
-        users_statistic.append(f"<b>{v}|{member.user.full_name} — {user.penis_size}</b>")
+        users_statistic.append(
+            f"<b>{v}|{member.user.full_name} — {user.penis_size}</b>"
+        )
 
-    await message.answer("Топ 10 игроков\n" + "\n".join(users_statistic))
+    await message.answer(
+        "Топ 10 игроков\n" + "\n".join(users_statistic), parse_mode=ParseMode.HTML
+    )
 
 
 @penis_router.message(Command("stats", ignore_case=True), F.chat.type != "private")
@@ -106,17 +111,23 @@ async def _command_stats_handler(message: Message):
         member = obj.get("member")
         user = obj.get("user")
 
-        users_statistic.append({"name": member.user.full_name, "rank": v, "size": user.penis_size})
+        users_statistic.append(
+            {"name": member.user.full_name, "rank": v, "size": user.penis_size}
+        )
 
     with stats_to_image(users_statistic) as image_bytes:
-        await message.answer_photo(BufferedInputFile(image_bytes, "stats-diagram-image"))
+        await message.answer_photo(
+            BufferedInputFile(image_bytes, "stats-diagram-image")
+        )
 
 
 @penis_router.message(Command("dick", ignore_case=True), F.chat.type != "private")
 async def _command_dick_handler(message: Message):
     user = await get_or_create_user(message.from_user.id, message.chat.id)
 
-    seconds_after = 43200 - int((datetime.utcnow() - user.last_penis_update).total_seconds())
+    seconds_after = 43200 - int(
+        (datetime.utcnow() - user.last_penis_update).total_seconds()
+    )
     if seconds_after >= 0:
         next_attempt = timedelta(seconds=seconds_after)
 
@@ -124,7 +135,8 @@ async def _command_dick_handler(message: Message):
             f"""{message.from_user.mention_html()}, ты уже играл.
 Сейчас он равен {user.penis_size} см.
 Ты занимаешь {user.rank} место в топе.
-Следующая попытка через {next_attempt}"""
+Следующая попытка через {next_attempt}""",
+            parse_mode=ParseMode.HTML,
         )
     else:
         dick_append = random.randint(3, 15)
@@ -135,6 +147,7 @@ async def _command_dick_handler(message: Message):
             f"""{message.from_user.mention_html()}, твой писюн вырос на {dick_append} см.
 Теперь он равен {user.penis_size} см.
 Ты занимаешь {user.rank} место в топе
-Следующая попытка через 12 часов"""
+Следующая попытка через 12 часов""",
+            parse_mode=ParseMode.HTML,
         )
         await last_penis_update_now(message.from_user.id, message.chat.id)

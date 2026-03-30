@@ -1,4 +1,5 @@
 from aiogram import F, Router
+from aiogram.enums import ParseMode
 from aiogram.types import Message, Chat
 from bot.db.methods import get_members
 
@@ -11,7 +12,9 @@ toxicity_router.message.filter(F.chat.type != "private")
 
 
 async def get_tox_stats(chat: Chat):
-    users = sorted(list(await get_members(chat.id, limit=10)), key=lambda x: -x.toxicity_level)
+    users = sorted(
+        list(await get_members(chat.id, limit=10)), key=lambda x: -x.toxicity_level
+    )
     result = []
 
     for v, user in enumerate(users, 1):
@@ -28,7 +31,9 @@ async def get_tox_stats(chat: Chat):
     return result
 
 
-@toxicity_router.message(Command("top_toxic", ignore_case=True), F.chat.type != "private")
+@toxicity_router.message(
+    Command("top_toxic", ignore_case=True), F.chat.type != "private"
+)
 async def _command_top_toxic_handler(message: Message):
     users_statistic = []
 
@@ -37,6 +42,10 @@ async def _command_top_toxic_handler(message: Message):
         member = obj.get("member")
         user = obj.get("user")
 
-        users_statistic.append(f"<b>{v}|{member.user.full_name} — {user.toxicity_level}</b>")
+        users_statistic.append(
+            f"<b>{v}|{member.user.full_name} — {user.toxicity_level}</b>"
+        )
 
-    await message.answer("Топ 10 токсиков\n" + "\n".join(users_statistic))
+    await message.answer(
+        "Топ 10 токсиков\n" + "\n".join(users_statistic), parse_mode=ParseMode.HTML
+    )

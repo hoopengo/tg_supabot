@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   db:
     restart: always
@@ -18,7 +16,7 @@ services:
     env_file:
       - ./settings/redis.env
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [CMD, redis-cli, ping]
       interval: 1m
       timeout: 10s
       retries: 3

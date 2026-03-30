@@ -1,27 +1,32 @@
-[tool.poetry]
+[project]
 name = "tg-supabot"
 version = "0.1.0"
 description = "SupaBot for somethings"
-authors = ["hoopengo <hoopengo@yandex.ru>"]
-license = "Apache License 2.0"
+authors = [{ name = "hoopengo", email = "hoopengo@yandex.ru" }]
+requires-python = ">=3.14,<4"
 readme = "README.md"
+license = "Apache License 2.0"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.14",
+]
+dependencies = [
+    "aiogram>=3.12,<4",
+    "pydantic-settings>=2.0.2,<3",
+    "betterlogging>=1.0.0,<2",
+    "sqlalchemy[asyncio]>=2.0.19,<3",
+    "alembic>=1.11.1,<2",
+    "asyncpg>=0.31.0,<0.32",
+    "redis[hiredis]>=5.0.8,<6",
+    "matplotlib>=3.8.0,<4",
+    "apscheduler>=3.10.4,<4",
+]
 
-[tool.poetry.dependencies]
-python = "^3.11"
-aiogram = { version = "^3.0.0b8", allow-prereleases = true }
-pydantic-settings = "^2.0.2"
-betterlogging = "^0.2.1"
-sqlalchemy = { extras = ["asyncio"], version = "^2.0.19" }
-alembic = "^1.11.1"
-asyncpg = "^0.28.0"
-redis = {extras = ["hiredis"], version = "^4.6.0"}
-matplotlib = "^3.8.0"
-apscheduler = "^3.10.4"
+[dependency-groups]
+dev = [
+    "black>=24.8.0,<25",
+    "flake8>=7.1.1,<8",
+]
 
-[tool.poetry.group.dev.dependencies]
-black = "^23.10.0"
-flake8 = "^6.1.0"
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+[tool.uv]
+default-groups = "all"

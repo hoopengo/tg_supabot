@@ -3,6 +3,7 @@ import random
 from collections import defaultdict
 
 from aiogram import Bot
+from aiogram.enums import ParseMode
 
 from bot.db.methods import get_rating_users, update_dick_size
 
@@ -37,4 +38,6 @@ async def minus_penis_cron(bot: Bot):
 
         message_text = f"Сегодняшние счастливчики: \
 {', '.join([f'{member_data[0].user.mention_html()} ({member_data[1]} см)' for member_data in list_members])}"
-        await bot.send_message(chat_id=chat_id, text=message_text)
+        await bot.send_message(
+            chat_id=chat_id, text=message_text, parse_mode=ParseMode.HTML
+        )

@@ -3,6 +3,8 @@ import logging
 
 import betterlogging as bl
 from aiogram import Bot, Dispatcher
+from aiogram.client.default import DefaultBotProperties
+from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.utils.chat_action import ChatActionMiddleware
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -64,7 +66,10 @@ async def main():
 
     storage = MemoryStorage()
 
-    bot = Bot(token=config.TOKEN.get_secret_value(), parse_mode="HTML")
+    bot = Bot(
+        token=config.TOKEN.get_secret_value(),
+        default_bot_properties=DefaultBotProperties(parse_mode=ParseMode.HTML),
+    )
     setup_scheduler(bot)
     dp = Dispatcher(storage=storage)
 

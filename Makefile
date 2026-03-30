@@ -3,7 +3,7 @@ restart:
 stop:
 	docker compose down -v
 alembic-revision: # make alembic-revision COMMENT="your comment"
-	docker exec -it tg_supabot-bot-1 bash -c "alembic revision --autogenerate -m \"${COMMENT}\""
+	docker exec -it -w /usr/src/app/src tg_supabot-bot-1 bash -c "alembic revision --autogenerate -m \"${COMMENT}\""
 relogs:
 	docker logs tg_supabot-bot-1 --follow
 psql:

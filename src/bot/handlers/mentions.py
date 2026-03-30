@@ -1,4 +1,5 @@
 from aiogram import Router, F
+from aiogram.enums import ParseMode
 from aiogram.filters import Command
 from aiogram.types import Message
 from bot.db.methods import get_members
@@ -20,10 +21,12 @@ async def _command_mention_all_handler(message: Message):
         if member.user.username:
             mention_list.append(f"@{member.user.username}")
         else:
-            mention_text = f'<a href="tg://user?id={member.user.id}">{member.user.first_name}</a>'
+            mention_text = (
+                f'<a href="tg://user?id={member.user.id}">{member.user.first_name}</a>'
+            )
             mention_list.append(mention_text)
 
     mention = ", ".join(mention_list)
     if mention == "":
         return await message.reply("В системе нет зарегистрированых пользователей.")
-    await message.reply(mention)
+    await message.reply(mention, parse_mode=ParseMode.HTML)

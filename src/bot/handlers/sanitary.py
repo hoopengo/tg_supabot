@@ -1,4 +1,5 @@
 from aiogram import Router, F
+from aiogram.enums import ParseMode
 from aiogram.filters import Command, CommandObject
 from aiogram.types import Message
 from bot.db.methods import get_next_sanitaries
@@ -6,7 +7,9 @@ from bot.db.methods import get_next_sanitaries
 sanitary_router = Router()
 
 
-@sanitary_router.message(Command("sanitary", ignore_case=True), F.chat.type != "private")
+@sanitary_router.message(
+    Command("sanitary", ignore_case=True), F.chat.type != "private"
+)
 async def _command_sanitary_handler(message: Message, command: CommandObject):
     count = None
     if command.args:
@@ -28,4 +31,6 @@ async def _command_sanitary_handler(message: Message, command: CommandObject):
         member = await message.chat.get_member(sanitary.user_id)
         choisen_users.append(member.user.mention_html())
 
-    await message.answer("Дежурные: " + ", ".join(choisen_users))
+    await message.answer(
+        "Дежурные: " + ", ".join(choisen_users), parse_mode=ParseMode.HTML
+    )

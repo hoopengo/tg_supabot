@@ -1,29 +1,37 @@
-FROM python:3.11.6-slim-bookworm
+ARG PYTHON_VERSION=3.14.3-slim-trixie
+FROM python:${PYTHON_VERSION} AS builder
 
-ENV PYTHONFAULTHANDLER=1 \
-    PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONHASHSEED=random \
-    PIP_NO_CACHE_DIR=off \
-    PIP_DISABLE_PIP_VERSION_CHECK=on \
-    PIP_DEFAULT_TIMEOUT=100 \
-    POETRY_VERSION=1.6.1 \
-    DISABLE_POETRY_CREATE_RUNTIME_FILE=1 \
-    PYTHON_RUNTIME_VERSION=3.11.6
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uv/bin/uv
+ENV PATH="/uv/bin:$PATH"
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    libpq-dev && rm -rf /var/lib/apt/lists/*
-
-RUN pip install --upgrade pip && pip install "poetry==$POETRY_VERSION"
-
-RUN mkdir -p /usr/src/app
 WORKDIR /usr/src/app
 
-COPY pyproject.toml poetry.lock* ./docker/bot-entrypoint.sh ./
+COPY pyproject.toml uv.lock ./
 
-RUN poetry config virtualenvs.create false && poetry install --no-interaction --no-ansi
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --no-install-project
 
-COPY src/ /usr/src/app/
+COPY src/ /usr/src/app/src/
+
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev
+
+FROM python:${PYTHON_VERSION}
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libpq5 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /usr/src/app
+
+COPY --from=builder /usr/src/app/.venv .venv
+COPY --from=builder /usr/src/app/src/ src/
+COPY docker/bot-entrypoint.sh ./
+RUN chmod +x bot-entrypoint.sh
+
+ENV PATH="/usr/src/app/.venv/bin:$PATH"
 
 ENTRYPOINT ["./bot-entrypoint.sh"]

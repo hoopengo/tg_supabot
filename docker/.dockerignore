@@ -1,14 +1,15 @@
 .DS_Store
-.venv
-.idea
-.vscode
+.venv/
+.idea/
+.vscode/
+.trunk/
 
-__pycache__
+__pycache__/
 
 *.pyc
 .git
 .gitignore
 
-logs
-data
-cache
+logs/
+data/
+cache/

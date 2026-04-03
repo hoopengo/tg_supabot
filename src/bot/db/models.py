@@ -1,8 +1,46 @@
 from datetime import datetime, timedelta
+from enum import Enum as PyEnum
 
-from sqlalchemy import BigInteger, Boolean, Column, DateTime, Integer, String
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    Column,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+)
 
 from bot.db.base import Base
+
+
+class QueueStatus(str, PyEnum):
+    OPEN = "open"
+    CLOSED = "closed"
+
+
+class MemberStatus(str, PyEnum):
+    ACTIVE = "active"
+    REMOVED = "removed"
+
+
+class SwapStatus(str, PyEnum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    EXPIRED = "expired"
+
+
+class AdminRole(str, PyEnum):
+    SUPER_ADMIN = "super_admin"
+    ADMIN = "admin"
+
+
+def _enum_values(enums):
+    return [e.value for e in enums]
 
 
 class StickerMessageModel(Base):
@@ -44,15 +82,143 @@ class UserModel(Base):
     id = Column(Integer, primary_key=True)
     chat_id = Column(BigInteger, nullable=False)
     user_id = Column(BigInteger, nullable=False)
+    username = Column(String(255), nullable=True)
+    first_name = Column(String(255), nullable=True)
 
     sanitary_last = Column(Boolean, default=False)
     penis_size = Column(Integer, default=0, index=True)
-    last_penis_update = Column(DateTime, default=datetime.utcnow() - timedelta(hours=12))
+    last_penis_update = Column(
+        DateTime, default=datetime.utcnow() - timedelta(hours=12)
+    )
     toxicity_level = Column(Integer, default=0, nullable=False)
 
-    def __init__(self, chat_id: int, user_id: int):
+    def __init__(
+        self,
+        chat_id: int,
+        user_id: int,
+        username: str | None = None,
+        first_name: str | None = None,
+    ):
         self.chat_id = chat_id
         self.user_id = user_id
+        self.username = username
+        self.first_name = first_name
 
     def __repr__(self):
         return f"<User {self.id}>"
+
+
+class QueueModel(Base):
+    __tablename__ = "queues"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    chat_id = Column(BigInteger, nullable=False, index=True)
+    message_id = Column(BigInteger, nullable=True)
+    title = Column(String(255), nullable=False)
+    status = Column(
+        Enum(QueueStatus, values_callable=_enum_values),
+        nullable=False,
+        default=QueueStatus.OPEN,
+    )
+    created_by = Column(BigInteger, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+    def __repr__(self):
+        return f"<Queue {self.id} '{self.title}'>"
+
+
+class QueueMemberModel(Base):
+    __tablename__ = "queue_members"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    queue_id = Column(
+        Integer, ForeignKey("queues.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id = Column(BigInteger, nullable=False)
+    username = Column(String(255), nullable=True)
+    first_name = Column(String(255), nullable=True)
+    position = Column(Integer, nullable=False)
+    joined_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    status = Column(
+        Enum(MemberStatus, values_callable=_enum_values),
+        nullable=False,
+        default=MemberStatus.ACTIVE,
+    )
+
+    __table_args__ = (
+        Index("ix_queue_members_queue_position", "queue_id", "position"),
+        Index("ix_queue_members_queue_user", "queue_id", "user_id"),
+    )
+
+    def __repr__(self):
+        return f"<QueueMember queue={self.queue_id} user={self.user_id} pos={self.position}>"
+
+
+class SwapRequestModel(Base):
+    __tablename__ = "swap_requests"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    queue_id = Column(
+        Integer, ForeignKey("queues.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    from_user_id = Column(BigInteger, nullable=False)
+    to_user_id = Column(BigInteger, nullable=False)
+    status = Column(
+        Enum(SwapStatus, values_callable=_enum_values),
+        nullable=False,
+        default=SwapStatus.PENDING,
+    )
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+
+    def __repr__(self):
+        return f"<SwapRequest {self.id} queue={self.queue_id} {self.from_user_id}<->{self.to_user_id}>"
+
+
+class ChatAdminModel(Base):
+    __tablename__ = "chat_admins"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    chat_id = Column(BigInteger, nullable=False, index=True)
+    user_id = Column(BigInteger, nullable=False)
+    first_name = Column(String(255), nullable=True)
+    username = Column(String(255), nullable=True)
+    role = Column(
+        Enum(AdminRole, values_callable=_enum_values),
+        nullable=False,
+        default=AdminRole.ADMIN,
+    )
+    added_by = Column(BigInteger, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+
+    __table_args__ = (Index("ix_chat_admins_chat_user", "chat_id", "user_id"),)
+
+    def __repr__(self):
+        return f"<ChatAdmin chat={self.chat_id} user={self.user_id} role={self.role}>"
+
+    @property
+    def display_name(self) -> str:
+        if self.username:
+            return f"@{self.username}"
+        if self.first_name:
+            return self.first_name
+        return str(self.user_id)
+
+
+class AuditLogModel(Base):
+    __tablename__ = "audit_log"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    chat_id = Column(BigInteger, nullable=False, index=True)
+    queue_id = Column(Integer, nullable=True)
+    actor_user_id = Column(BigInteger, nullable=False)
+    action = Column(String(100), nullable=False)
+    payload = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    def __repr__(self):
+        return f"<AuditLog {self.id} {self.action}>"

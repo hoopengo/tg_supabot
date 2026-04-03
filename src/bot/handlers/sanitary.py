@@ -17,12 +17,15 @@ async def _command_sanitary_handler(message: Message, command: CommandObject):
             count = int(command.args.split(" ")[0])
         except ValueError:
             await message.reply("Аргумент должен быть числом")
-        finally:
-            count = abs(count)
-            if count == 0:
-                count = None
+            return
+        count = abs(count)
+        if count == 0:
+            count = None
 
-    sanitaries = await get_next_sanitaries(message.chat.id, count)
+    if count is not None:
+        sanitaries = await get_next_sanitaries(message.chat.id, count)
+    else:
+        sanitaries = await get_next_sanitaries(message.chat.id)
     if len(sanitaries) == 0:
         return await message.reply("Не найдено кандидатов")
 

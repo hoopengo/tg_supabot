@@ -1,12 +1,19 @@
 """Import all routers and add them to routers_list."""
+
 from bot.handlers.start import start_router
 from bot.handlers.sticker import sticker_router
 from bot.handlers.mentions import mentions_router
 from bot.handlers.penis import penis_router
 from bot.handlers.sanitary import sanitary_router
 from bot.handlers.toxicity_control import toxicity_router
+from bot.handlers.queues import queue_router
+from bot.handlers.admin import admin_router
+from bot.handlers.super_admin import super_admin_router
 
 routers_list = (
+    super_admin_router,
+    admin_router,
+    queue_router,
     start_router,
     sticker_router,
     mentions_router,

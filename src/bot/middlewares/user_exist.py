@@ -13,9 +13,16 @@ class UserExistCallbackMiddleware(BaseMiddleware):
         event: Message,
         data: Dict[str, Any],
     ) -> Any:
-        if event.chat.type != "private" and not await user_exist(event.from_user.id, event.chat.id):
+        if event.chat.type != "private" and not await user_exist(
+            event.from_user.id, event.chat.id
+        ):
             try:
-                await add_user(event.from_user.id, event.chat.id)
+                await add_user(
+                    event.from_user.id,
+                    event.chat.id,
+                    username=event.from_user.username,
+                    first_name=event.from_user.first_name,
+                )
             except Exception as err:
                 return await event.answer(f"Произошла ошибка: {err}")
 

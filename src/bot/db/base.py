@@ -2,7 +2,6 @@ import logging
 from contextlib import asynccontextmanager
 from typing import AsyncContextManager
 
-from sqlalchemy import NullPool
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.ext.declarative import DeclarativeMeta
 from sqlalchemy.orm import declarative_base
@@ -19,8 +18,10 @@ postgres_url = (
 )
 engine = create_async_engine(
     postgres_url,
-    echo=True,
-    poolclass=NullPool,
+    echo=False,
+    pool_size=10,
+    max_overflow=5,
+    pool_pre_ping=True,
 )
 Base: DeclarativeMeta = declarative_base()
 Session = async_sessionmaker(

@@ -1,3 +1,4 @@
+import asyncio
 from typing import Any, Awaitable, Callable, Dict
 
 from aiogram import BaseMiddleware
@@ -22,6 +23,6 @@ class ToxityMessageMiddleware(BaseMiddleware):
         event: Message,
         data: Dict[str, Any],
     ) -> Any:
-        await _toxicity_handler(event)
+        asyncio.create_task(_toxicity_handler(event))
 
         return await handler(event, data)

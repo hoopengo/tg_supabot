@@ -8,7 +8,7 @@ from bot.redis import message_cache
 
 
 async def get_next_sanitaries(chat_id: int, count: int = 2):
-    if count <= 0:
+    if count is None or count <= 0:
         return []
 
     async with session() as s:
@@ -24,7 +24,10 @@ async def get_next_sanitaries(chat_id: int, count: int = 2):
         if len(result) < count:
             result = (
                 await s.scalars(
-                    select(UserModel).where(UserModel.chat_id == chat_id).order_by(func.random()).limit(count)
+                    select(UserModel)
+                    .where(UserModel.chat_id == chat_id)
+                    .order_by(func.random())
+                    .limit(count)
                 )
             ).all()
 
@@ -33,7 +36,9 @@ async def get_next_sanitaries(chat_id: int, count: int = 2):
 
         deprecated_sanitaries = (
             await s.scalars(
-                select(UserModel).where(UserModel.chat_id == chat_id, UserModel.sanitary_last == True)
+                select(UserModel).where(
+                    UserModel.chat_id == chat_id, UserModel.sanitary_last == True
+                )
             )  # noqa
         ).all()
 
@@ -46,11 +51,16 @@ async def get_next_sanitaries(chat_id: int, count: int = 2):
         return result
 
 
-async def get_members(chat_id: int, limit: int | None = None) -> Sequence[UserModel] | None:
+async def get_members(
+    chat_id: int, limit: int | None = None
+) -> Sequence[UserModel] | None:
     async with session() as s:
         result = (
             await s.scalars(
-                select(UserModel).where(UserModel.chat_id == chat_id).order_by(UserModel.penis_size.desc()).limit(limit)
+                select(UserModel)
+                .where(UserModel.chat_id == chat_id)
+                .order_by(UserModel.penis_size.desc())
+                .limit(limit)
             )
         ).all()
 
@@ -66,20 +76,43 @@ async def get_or_create_user(user_id: int, chat_id: int):
     return user
 
 
-async def add_user(user_id: int, chat_id: int) -> None:
+async def add_user(
+    user_id: int,
+    chat_id: int,
+    username: str | None = None,
+    first_name: str | None = None,
+) -> None:
     async with session() as s:
         s.add(
             UserModel(
                 chat_id=chat_id,
                 user_id=user_id,
+                username=username,
+                first_name=first_name,
             )
         )
 
 
 async def user_exist(user_id: int, chat_id: int) -> bool:
     async with session() as s:
-        user_exists = await s.scalar(select(exists().where(UserModel.user_id == user_id, UserModel.chat_id == chat_id)))
+        user_exists = await s.scalar(
+            select(
+                exists().where(
+                    UserModel.user_id == user_id, UserModel.chat_id == chat_id
+                )
+            )
+        )
         return user_exists
+
+
+async def get_user_by_username(username: str, chat_id: int) -> UserModel | None:
+    async with session() as s:
+        return await s.scalar(
+            select(UserModel).where(
+                UserModel.chat_id == chat_id,
+                UserModel.username == username,
+            )
+        )
 
 
 async def get_user(user_id: int, chat_id: int):
@@ -99,7 +132,11 @@ async def last_penis_update_now(
 ) -> UserModel:
     async with session() as s:
         result: UserModel = (
-            await s.scalars(select(UserModel).where(UserModel.user_id == user_id, UserModel.chat_id == chat_id))
+            await s.scalars(
+                select(UserModel).where(
+                    UserModel.user_id == user_id, UserModel.chat_id == chat_id
+                )
+            )
         ).first()
 
         result.last_penis_update = datetime.utcnow()
@@ -115,7 +152,11 @@ async def update_dick_size(
 ):
     async with session() as s:
         result: UserModel = (
-            await s.scalars(select(UserModel).where(UserModel.user_id == user_id, UserModel.chat_id == chat_id))
+            await s.scalars(
+                select(UserModel).where(
+                    UserModel.user_id == user_id, UserModel.chat_id == chat_id
+                )
+            )
         ).first()
 
         result.penis_size += append_size
@@ -133,7 +174,11 @@ async def update_toxicity_level(
 ):
     async with session() as s:
         result: UserModel = (
-            await s.scalars(select(UserModel).where(UserModel.user_id == user_id, UserModel.chat_id == chat_id))
+            await s.scalars(
+                select(UserModel).where(
+                    UserModel.user_id == user_id, UserModel.chat_id == chat_id
+                )
+            )
         ).first()
 
         result.toxicity_level += count
@@ -150,7 +195,11 @@ async def get_message_data(message_id: int) -> dict | None:
 
     async with session() as s:
         # get MessageModel from postgresql
-        result = (await s.scalars(select(StickerMessageModel).where(StickerMessageModel.id == message_id))).first()
+        result = (
+            await s.scalars(
+                select(StickerMessageModel).where(StickerMessageModel.id == message_id)
+            )
+        ).first()
 
         # check that result exist
         if result is None:
@@ -168,14 +217,21 @@ async def get_message_data(message_id: int) -> dict | None:
 
 async def get_rating_users():
     async with session() as s:
-        result = (await s.scalars(select(UserModel).where(UserModel.penis_size != 0))).all()
+        result = (
+            await s.scalars(select(UserModel).where(UserModel.penis_size != 0))
+        ).all()
         return result
 
 
 async def get_random_users(chat_id: int, count: int = 3) -> list[UserModel]:
     async with session() as s:
         result = (
-            await s.scalars(select(UserModel).where(UserModel.chat_id == chat_id).order_by(func.random()).limit(count))
+            await s.scalars(
+                select(UserModel)
+                .where(UserModel.chat_id == chat_id)
+                .order_by(func.random())
+                .limit(count)
+            )
         ).all()
 
         return result

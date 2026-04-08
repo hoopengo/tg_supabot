@@ -12,12 +12,9 @@ async def _command_mention_all_handler(message: Message):
     members = await get_members(message.chat.id)
     mention_list = []
 
-    # Iterate through members by user_id
     for user in members:
-        # Get each member individually
         member = await message.chat.get_member(user.user_id)
 
-        # Mention each member in the message
         if member.user.username:
             mention_list.append(f"@{member.user.username}")
         else:

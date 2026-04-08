@@ -12,10 +12,10 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from bot.config import config
 from bot.handlers import routers_list
+from bot.middlewares.flood_control import FloodControlMiddleware
 from bot.middlewares.toxity_middleware import ToxityMessageMiddleware
 from bot.middlewares.user_exist import UserExistCallbackMiddleware
 from bot.services import apshed, broadcaster
-
 
 COMMANDS = [
     BotCommand(command="start", description="Начало работы"),
@@ -97,6 +97,7 @@ async def main():
     dp.include_routers(*routers_list)
 
     # middlewares register
+    dp.message.outer_middleware(FloodControlMiddleware())
     dp.message.outer_middleware(UserExistCallbackMiddleware())
     dp.message.outer_middleware(ToxityMessageMiddleware())
     dp.message.middleware(ChatActionMiddleware())
@@ -108,5 +109,5 @@ async def main():
 if __name__ == "__main__":
     try:
         asyncio.run(main())
-    except (KeyboardInterrupt, SystemExit):
+    except KeyboardInterrupt, SystemExit:
         logging.error("Бот был выключен!")

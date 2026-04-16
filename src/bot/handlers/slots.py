@@ -6,17 +6,19 @@ from aiogram import F, Router
 from aiogram.enums import ParseMode
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery, Message
+from sqlalchemy import select
 
+from bot.db import UserModel, session
 from bot.handlers.casino import get_user_penis, update_penis_safe
 from bot.keyboards.slots_kb import (
-    RED_NUMBERS,
     BLACK_NUMBERS,
+    RED_NUMBERS,
+    SPIN_DURATION,
     SlotsCallback,
     build_amount_keyboard,
     build_bet_type_keyboard,
     build_cancel_keyboard,
     build_number_keyboard,
-    SPIN_DURATION,
 )
 from bot.redis import message_cache
 
@@ -132,6 +134,30 @@ def get_winner_type(number: int) -> str:
     return "⚫ Черное"
 
 
+async def get_user_names(chat_id: int, user_ids: list[int]) -> dict[int, str]:
+    """Get display names for multiple users."""
+    names = {}
+    async with session() as s:
+        results = await s.scalars(
+            select(UserModel).where(
+                UserModel.chat_id == chat_id, UserModel.user_id.in_(user_ids)
+            )
+        )
+        for user in results:
+            if user.username:
+                names[user.user_id] = f"@{user.username}"
+            elif user.first_name:
+                names[user.user_id] = user.first_name
+            else:
+                names[user.user_id] = f'<a href="tg://user?id={user.user_id}">User</a>'
+
+    # Add missing users with default name
+    for uid in user_ids:
+        if uid not in names:
+            names[uid] = f'<a href="tg://user?id={uid}">User</a>'
+    return names
+
+
 def calculate_payout(
     bet_type: str, number: int, winning_number: int, amount: int
 ) -> int:
@@ -154,7 +180,7 @@ def calculate_payout(
     return 0
 
 
-def format_bets_text(bets: list, users: dict) -> str:
+def format_bets_text(bets: list, user_names: dict) -> str:
     bet_type_names = {
         "red": "🔴 Красное",
         "black": "⚫ Черное",
@@ -170,7 +196,7 @@ def format_bets_text(bets: list, users: dict) -> str:
         return "Ставок пока нет"
     lines = []
     for bet in bets:
-        user_name = users.get(bet["user_id"], f"User-{bet['user_id']}")
+        user_name = user_names.get(bet["user_id"], f"User-{bet['user_id']}")
         bet_type = bet_type_names.get(bet["bet_type"], bet["bet_type"])
         if bet["bet_type"] == "number":
             lines.append(f"• {user_name}: {bet['amount']} см на {bet['number']}")
@@ -206,6 +232,10 @@ async def finish_roulette(bot, chat_id: int, message_id: int) -> None:
     # Wait for betting period
     await asyncio.sleep(SPIN_DURATION)
 
+    # Check if still active (could have been force restarted)
+    if not await check_roulette_active(chat_id):
+        return
+
     winning_number = spin_roulette()
     winner_type = get_winner_type(winning_number)
 
@@ -213,28 +243,37 @@ async def finish_roulette(bot, chat_id: int, message_id: int) -> None:
     await clear_roulette_active(chat_id)
     await clear_bets(chat_id)
 
-    results = []
+    # Get user names
+    user_ids = list(set(bet["user_id"] for bet in bets))
+    user_names = await get_user_names(chat_id, user_ids)
+
+    winners = []
+    losers = []
 
     for bet in bets:
         payout = calculate_payout(
             bet["bet_type"], bet["number"], winning_number, bet["amount"]
         )
+        user_name = user_names.get(bet["user_id"], f"User-{bet['user_id']}")
         if payout > 0:
             _, actual_win, _ = await update_penis_safe(
                 bet["user_id"], chat_id, payout, bet["amount"]
             )
-            results.append(f"• User-{bet['user_id']}: +{actual_win} см")
+            winners.append(f"• {user_name}: +{actual_win} см")
         else:
             await update_penis_safe(
                 bet["user_id"], chat_id, -bet["amount"], bet["amount"]
             )
+            losers.append(f"• {user_name}: -{bet['amount']} см")
 
     result_text = f"🎰 <b>Рулетка</b>\n\nВыпало: {winning_number} ({winner_type})\n\n"
 
-    if results:
-        result_text += "Победители:\n" + "\n".join(results)
-    else:
-        result_text += "Никто не угадал!"
+    if winners:
+        result_text += "🎉 Победители:\n" + "\n".join(winners) + "\n\n"
+    if losers:
+        result_text += "💀 Проигравшие:\n" + "\n".join(losers)
+    if not winners and not losers:
+        result_text += "Ставок не было"
 
     try:
         await bot.edit_message_text(
@@ -250,6 +289,23 @@ async def finish_roulette(bot, chat_id: int, message_id: int) -> None:
 
 @router.message(Command("slots", ignore_case=True), F.chat.type != "private")
 async def slots_command(message: Message):
+    chat_id = message.chat.id
+
+    # Check for force restart
+    parts = message.text.split()
+    force = len(parts) > 1 and parts[1] == "force"
+
+    if await check_roulette_active(chat_id):
+        if force:
+            await clear_roulette_active(chat_id)
+            await clear_bets(chat_id)
+        else:
+            await message.answer(
+                "Рулетка уже крутится! Используй /slots force для принудительного перезапуска.",
+                parse_mode=ParseMode.HTML,
+            )
+            return
+
     await start_roulette_game(message)
 
 
@@ -352,7 +408,11 @@ async def slots_callback(query: CallbackQuery, callback_data: SlotsCallback):
         )
 
         bets = await get_bets(chat_id)
-        bet_text = format_bets_text(bets, {})
+        # Get user names
+        user_ids = list(set(bet["user_id"] for bet in bets))
+        user_ids.append(user_id)  # Include current user
+        user_names = await get_user_names(chat_id, user_ids)
+        bet_text = format_bets_text(bets, user_names)
 
         await query.message.edit_text(
             f"🎰 <b>Рулетка</b>\n\nСтавки:\n{bet_text}\n\nВыберите тип ставки:",

@@ -1,5 +1,4 @@
 import random
-from datetime import datetime
 
 from aiogram import Router, F
 from aiogram.enums import ParseMode
@@ -7,7 +6,6 @@ from aiogram.filters import Command
 from aiogram.types import Message
 from sqlalchemy import select
 
-from bot.config import config
 from bot.db import UserModel, session
 from bot.redis import message_cache
 
@@ -83,11 +81,9 @@ async def update_penis_safe(
             await s.commit()
             return True, abs(change), f"Проиграл {abs(change)} см"
         else:
-            max_win = min(change * MAX_WIN_MULTIPLIER, MAX_BET * MAX_WIN_MULTIPLIER)
-            actual_win = min(change + max_win, current + max_win) - current
-            result.penis_size = current + actual_win
+            result.penis_size = current + change
             await s.commit()
-            return True, actual_win, f"Выиграл {actual_win} см"
+            return True, change, f"Выиграл {change} см"
 
 
 @router.message(Command("casino_top", ignore_case=True), F.chat.type != "private")

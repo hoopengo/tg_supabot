@@ -1,9 +1,8 @@
 import random
-from datetime import datetime, timedelta
-from functools import partial
+from datetime import datetime
 
-import redis.asyncio as redis
 from aiogram import Router, F
+from aiogram.enums import ParseMode
 from aiogram.filters import Command
 from aiogram.types import Message
 from sqlalchemy import select
@@ -91,19 +90,6 @@ async def update_penis_safe(
             return True, actual_win, f"Выиграл {actual_win} см"
 
 
-@router.message(Command("casino", ignore_case=True), F.chat.type != "private")
-async def casino_help(message: Message):
-    await message.answer(
-        "<b>🎰 Казино Писюка</b>\n\n"
-        "Ставка: 1-50 см\n"
-        f"Макс. выигрыш: x{MAX_WIN_MULTIPLIER} от ставки\n"
-        f"Мин. баланс: {MIN_BALANCE} см\n"
-        f"Кулдаун: {COOLDOWN_SECONDS} сек\n\n"
-        "<code>/casino [ставка]</code> - сыграть\n"
-        "<code>/casino top</code> - топ игроков"
-    )
-
-
 @router.message(Command("casino_top", ignore_case=True), F.chat.type != "private")
 async def casino_top(message: Message):
     chat_id = message.chat.id
@@ -119,7 +105,7 @@ async def casino_top(message: Message):
         ).all()
 
     if not result:
-        await message.answer("Нет игроков в казино")
+        await message.answer("Нет игроков в казино", parse_mode=ParseMode.HTML)
         return
 
     lines = ["<b>🎰 Топ казино</b>\n"]
@@ -128,47 +114,68 @@ async def casino_top(message: Message):
             f"{i}. {user.first_name or user.username or user.user_id} — {user.penis_size} см"
         )
 
-    await message.answer("\n".join(lines))
+    await message.answer("\n".join(lines), parse_mode=ParseMode.HTML)
 
 
 @router.message(Command("casino", ignore_case=True), F.chat.type != "private")
 async def play_casino(message: Message):
     chat_id = message.chat.id
     user_id = message.from_user.id
-    username = message.from_user.username
-    first_name = message.from_user.first_name
 
     if await check_cooldown(user_id, chat_id):
-        await message.answer("Подожди немного, кулдаун еще не вышел")
+        await message.answer(
+            "Подожди немного, кулдаун еще не вышел", parse_mode=ParseMode.HTML
+        )
         return
 
     parts = message.text.split()
     if len(parts) < 2:
-        await message.answer("Укажи ставку: /casino [число]")
+        await message.answer(
+            "<b>🎰 Казино Писюка</b>\n\n"
+            "Ставка: 1-50 см\n"
+            f"Макс. выигрыш: x{MAX_WIN_MULTIPLIER} от ставки\n"
+            f"Мин. баланс: {MIN_BALANCE} см\n"
+            f"Кулдаун: {COOLDOWN_SECONDS} сек\n\n"
+            "<code>/casino [ставка]</code> - сыграть\n"
+            "<code>/casino top</code> - топ игроков",
+            parse_mode=ParseMode.HTML,
+        )
+        return
+
+    if parts[1] == "top":
+        await casino_top(message)
         return
 
     try:
         bet = int(parts[1])
     except ValueError:
-        await message.answer("Ставка должна быть числом")
+        await message.answer("Ставка должна быть числом", parse_mode=ParseMode.HTML)
         return
 
     if bet < MIN_BET:
-        await message.answer(f"Минимальная ставка: {MIN_BET} см")
+        await message.answer(
+            f"Минимальная ставка: {MIN_BET} см", parse_mode=ParseMode.HTML
+        )
         return
 
     if bet > MAX_BET:
-        await message.answer(f"Максимальная ставка: {MAX_BET} см")
+        await message.answer(
+            f"Максимальная ставка: {MAX_BET} см", parse_mode=ParseMode.HTML
+        )
         return
 
     current_penis = await get_user_penis(user_id, chat_id)
     if current_penis < bet:
-        await message.answer(f"У тебя недостаточно см. У тебя: {current_penis} см")
+        await message.answer(
+            f"У тебя недостаточно см. У тебя: {current_penis} см",
+            parse_mode=ParseMode.HTML,
+        )
         return
 
     if current_penis < MIN_BET:
         await message.answer(
-            f"У тебя слишком мало см для игры. Минимум: {MIN_BALANCE} см"
+            f"У тебя слишком мало см для игры. Минимум: {MIN_BALANCE} см",
+            parse_mode=ParseMode.HTML,
         )
         return
 
@@ -216,4 +223,4 @@ async def play_casino(message: Message):
     new_balance = await get_user_penis(user_id, chat_id)
     result_text += f"\n💰 Баланс: {new_balance} см"
 
-    await message.answer(result_text)
+    await message.answer(result_text, parse_mode=ParseMode.HTML)

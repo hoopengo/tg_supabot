@@ -91,6 +91,7 @@ class UserModel(Base):
         DateTime, default=datetime.utcnow() - timedelta(hours=12)
     )
     toxicity_level = Column(Integer, default=0, nullable=False)
+    casino_lucky = Column(Boolean, default=False, nullable=False)
 
     def __init__(
         self,

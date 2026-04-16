@@ -56,6 +56,18 @@ async def get_user_penis(user_id: int, chat_id: int) -> int:
         return 0
 
 
+async def is_casino_lucky(user_id: int, chat_id: int) -> bool:
+    async with session() as s:
+        result = await s.scalar(
+            select(UserModel).where(
+                UserModel.user_id == user_id, UserModel.chat_id == chat_id
+            )
+        )
+        if result:
+            return result.casino_lucky
+        return False
+
+
 async def update_penis_safe(
     user_id: int, chat_id: int, change: int, bet: int = 0
 ) -> tuple[bool, int, str]:
@@ -122,7 +134,7 @@ async def play_casino(message: Message):
 
     if await check_cooldown(user_id, chat_id):
         await message.answer(
-            "Подожди немного, кулдаун еще не вышел", parse_mode=ParseMode.HTML
+            "Подожди немного, куколд еще не вышел", parse_mode=ParseMode.HTML
         )
         return
 
@@ -179,7 +191,14 @@ async def play_casino(message: Message):
 
     await set_cooldown(user_id, chat_id)
 
+    lucky = await is_casino_lucky(user_id, chat_id)
+
     slots = [random.choice(SYMBOLS) for _ in range(3)]
+
+    if lucky:
+        # Заменяем на джекпот
+        symbol = random.choice(SYMBOLS)
+        slots = [symbol, symbol, symbol]
 
     unique = set(slots)
     len_unique = len(unique)

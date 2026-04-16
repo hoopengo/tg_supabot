@@ -246,26 +246,27 @@ async def start_roulette_game(message: Message) -> None:
 
 
 async def finish_roulette(bot, chat_id: int, message_id: int) -> None:
-    # Wait for betting period (either SPIN_DURATION from start or 15s from last bet)
+    start_time = time.time()
+
+    # Wait for betting period (SPIN_DURATION from start, or SPIN_DURATION from last bet)
     while True:
         await asyncio.sleep(1)
 
         if not await check_roulette_active(chat_id):
             return
 
-        # Check if last bet was more than SPIN_DURATION ago
         last_bet_key = get_last_bet_key(chat_id)
         last_bet_time = await message_cache.get(last_bet_key)
 
         if last_bet_time:
-            last_bet_ts = float(last_bet_time)
-            current_time = time.time()
-            elapsed = current_time - last_bet_ts
+            # Wait SPIN_DURATION since last bet
+            elapsed = time.time() - float(last_bet_time)
             if elapsed >= SPIN_DURATION:
                 break
         else:
-            # No bets yet, use original timer
-            break
+            # No bets yet — wait SPIN_DURATION from start
+            if time.time() - start_time >= SPIN_DURATION:
+                break
 
     winning_number = spin_roulette()
     winner_type = get_winner_type(winning_number)

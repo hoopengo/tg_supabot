@@ -10,6 +10,7 @@ from bot.handlers.queues import queue_router
 from bot.handlers.admin import admin_router
 from bot.handlers.super_admin import super_admin_router
 from bot.handlers.transfer import transfer_router
+from bot.handlers.casino import casino_router
 
 routers_list = (
     super_admin_router,
@@ -22,6 +23,7 @@ routers_list = (
     sanitary_router,
     toxicity_router,
     transfer_router,
+    casino_router,
 )
 
 __all__ = [

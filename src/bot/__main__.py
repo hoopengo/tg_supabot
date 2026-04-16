@@ -33,6 +33,8 @@ COMMANDS = [
     BotCommand(command="superadmin", description="Панель супер-админа"),
     BotCommand(command="add_admin", description="Добавить админа"),
     BotCommand(command="remove_admin", description="Удалить админа"),
+    BotCommand(command="casino", description="Казино Писюка"),
+    BotCommand(command="casino_top", description="Топ казино"),
 ]
 
 

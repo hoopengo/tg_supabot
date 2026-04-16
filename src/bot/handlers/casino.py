@@ -1,6 +1,6 @@
 import random
 
-from aiogram import Router, F
+from aiogram import F, Router
 from aiogram.enums import ParseMode
 from aiogram.filters import Command
 from aiogram.types import Message
@@ -13,7 +13,7 @@ router = Router()
 
 MIN_BET = 1
 MAX_BET = 50
-MAX_WIN_MULTIPLIER = 3
+MAX_WIN_MULTIPLIER = 5
 MIN_BALANCE = 1
 COOLDOWN_SECONDS = 30
 
@@ -21,12 +21,12 @@ REDIS_KEY_PREFIX = "casino_cooldown"
 
 SYMBOLS = ["🍒", "🍋", "🍊", "🍇", "💎", "🔔"]
 SYMBOL_PAYOUTS = {
-    "🍒": 2,
-    "🍋": 3,
-    "🍊": 4,
-    "🍇": 5,
-    "💎": 10,
-    "🔔": 20,
+    "🍒": 1,
+    "🍋": 1,
+    "🍊": 2,
+    "🍇": 2,
+    "💎": 2,
+    "🔔": 2,
 }
 
 
@@ -57,7 +57,7 @@ async def get_user_penis(user_id: int, chat_id: int) -> int:
 
 
 async def update_penis_safe(
-    user_id: int, chat_id: int, change: int
+    user_id: int, chat_id: int, change: int, bet: int = 0
 ) -> tuple[bool, int, str]:
     async with session() as s:
         result = await s.scalar(
@@ -81,9 +81,11 @@ async def update_penis_safe(
             await s.commit()
             return True, abs(change), f"Проиграл {abs(change)} см"
         else:
-            result.penis_size = current + change
+            max_win = bet * MAX_WIN_MULTIPLIER
+            win = min(change, max_win)
+            result.penis_size = current + win
             await s.commit()
-            return True, change, f"Выиграл {change} см"
+            return True, win, f"Выиграл {win} см"
 
 
 @router.message(Command("casino_top", ignore_case=True), F.chat.type != "private")
@@ -129,7 +131,7 @@ async def play_casino(message: Message):
         await message.answer(
             "<b>🎰 Казино Писюка</b>\n\n"
             "Ставка: 1-50 см\n"
-            f"Макс. выигрыш: x{MAX_WIN_MULTIPLIER} от ставки\n"
+            f"Макс. выигрыш: {MAX_WIN_MULTIPLIER}x от ставки\n"
             f"Мин. баланс: {MIN_BALANCE} см\n"
             f"Кулдаун: {COOLDOWN_SECONDS} сек\n\n"
             "<code>/casino [ставка]</code> - сыграть\n"
@@ -184,10 +186,16 @@ async def play_casino(message: Message):
 
     if len_unique == 1:
         symbol = slots[0]
-        multiplier = SYMBOL_PAYOUTS[symbol] * 3
+        multiplier = SYMBOL_PAYOUTS[symbol] * 2
+        # 5% шанс на x5
+        if random.random() < 0.05:
+            multiplier = 5
         win = bet * multiplier
-        _, actual_win, msg = await update_penis_safe(user_id, chat_id, win)
-        result_text = f"🎉 Джекпот! {slots[0]}{slots[0]}{slots[0]}\n{msg}"
+        _, actual_win, msg = await update_penis_safe(user_id, chat_id, win, bet)
+        if multiplier == 5:
+            result_text = f"🎉 СУПЕР ДЖЕКПОТ! {slots[0]}{slots[0]}{slots[0]}\n{msg}"
+        else:
+            result_text = f"🎉 Джекпот! {slots[0]}{slots[0]}{slots[0]}\n{msg}"
     elif len_unique == 2:
         symbol = list(unique - set(slots[:1]))[0] if slots[0] == slots[1] else slots[0]
         if slots.count(slots[0]) == 2:
@@ -197,23 +205,23 @@ async def play_casino(message: Message):
         if symbol in SYMBOL_PAYOUTS:
             multiplier = SYMBOL_PAYOUTS[symbol]
             win = bet * multiplier
-            _, actual_win, msg = await update_penis_safe(user_id, chat_id, win)
+            _, actual_win, msg = await update_penis_safe(user_id, chat_id, win, bet)
             result_text = f"🎯 Два совпадения! {symbol}{symbol}\n{msg}"
         else:
-            await update_penis_safe(user_id, chat_id, -bet)
+            await update_penis_safe(user_id, chat_id, -bet, bet)
             result_text = f"😢 Два совпадения, но не выигрышные\nПроиграл {bet} см"
     else:
         if slots[0] == slots[1] or slots[1] == slots[2]:
             symbol = slots[1]
             if symbol in SYMBOL_PAYOUTS:
                 win = bet * SYMBOL_PAYOUTS[symbol]
-                _, actual_win, msg = await update_penis_safe(user_id, chat_id, win)
+                _, actual_win, msg = await update_penis_safe(user_id, chat_id, win, bet)
                 result_text = f"🎵 {symbol}!\n{msg}"
             else:
-                await update_penis_safe(user_id, chat_id, -bet)
+                await update_penis_safe(user_id, chat_id, -bet, bet)
                 result_text = f"😢 Без выигрыша\nПроиграл {bet} см"
         else:
-            await update_penis_safe(user_id, chat_id, -bet)
+            await update_penis_safe(user_id, chat_id, -bet, bet)
             result_text = f"😢 {slots[0]}{slots[1]}{slots[2]}\nПроиграл {bet} см"
 
     new_balance = await get_user_penis(user_id, chat_id)

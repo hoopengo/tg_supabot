@@ -1,6 +1,7 @@
 import asyncio
 import json
 import random
+import time
 
 from aiogram import F, Router
 from aiogram.enums import ParseMode
@@ -27,6 +28,7 @@ router = Router()
 REDIS_ACTIVE_KEY = "slots_active"
 REDIS_BETS_KEY = "slots_bets"
 REDIS_LOCK_KEY = "slots_lock"
+REDIS_LAST_BET_KEY = "slots_last_bet"
 
 MIN_BET = 1
 MAX_BET = 100
@@ -42,6 +44,10 @@ def get_bets_key(chat_id: int) -> str:
 
 def get_lock_key(chat_id: int) -> str:
     return f"{REDIS_LOCK_KEY}:{chat_id}"
+
+
+def get_last_bet_key(chat_id: int) -> str:
+    return f"{REDIS_LAST_BET_KEY}:{chat_id}"
 
 
 async def acquire_bets_lock(chat_id: int) -> bool:
@@ -106,6 +112,11 @@ async def save_bet(
             )
 
         await message_cache.setex(key, SPIN_DURATION + 60, json.dumps(bets))
+
+        # Update last bet timestamp
+        last_bet_key = get_last_bet_key(chat_id)
+        await message_cache.setex(last_bet_key, SPIN_DURATION + 60, str(time.time()))
+
         return True
     finally:
         await release_bets_lock(chat_id)
@@ -119,6 +130,11 @@ async def get_bets(chat_id: int) -> list:
 
 async def clear_bets(chat_id: int) -> None:
     key = get_bets_key(chat_id)
+    await message_cache.delete(key)
+
+
+async def clear_last_bet(chat_id: int) -> None:
+    key = get_last_bet_key(chat_id)
     await message_cache.delete(key)
 
 
@@ -223,18 +239,33 @@ async def start_roulette_game(message: Message) -> None:
 
     await set_roulette_active(chat_id, msg.message_id)
     await clear_bets(chat_id)
+    await clear_last_bet(chat_id)
 
     # Run roulette finish in background to not block the handler
     asyncio.create_task(finish_roulette(message.bot, chat_id, msg.message_id))
 
 
 async def finish_roulette(bot, chat_id: int, message_id: int) -> None:
-    # Wait for betting period
-    await asyncio.sleep(SPIN_DURATION)
+    # Wait for betting period (either SPIN_DURATION from start or 15s from last bet)
+    while True:
+        await asyncio.sleep(1)
 
-    # Check if still active (could have been force restarted)
-    if not await check_roulette_active(chat_id):
-        return
+        if not await check_roulette_active(chat_id):
+            return
+
+        # Check if last bet was more than SPIN_DURATION ago
+        last_bet_key = get_last_bet_key(chat_id)
+        last_bet_time = await message_cache.get(last_bet_key)
+
+        if last_bet_time:
+            last_bet_ts = float(last_bet_time)
+            current_time = time.time()
+            elapsed = current_time - last_bet_ts
+            if elapsed >= SPIN_DURATION:
+                break
+        else:
+            # No bets yet, use original timer
+            break
 
     winning_number = spin_roulette()
     winner_type = get_winner_type(winning_number)
@@ -242,6 +273,7 @@ async def finish_roulette(bot, chat_id: int, message_id: int) -> None:
     bets = await get_bets(chat_id)
     await clear_roulette_active(chat_id)
     await clear_bets(chat_id)
+    await clear_last_bet(chat_id)
 
     # Get user names
     user_ids = list(set(bet["user_id"] for bet in bets))
@@ -299,6 +331,7 @@ async def slots_command(message: Message):
         if force:
             await clear_roulette_active(chat_id)
             await clear_bets(chat_id)
+            await clear_last_bet(chat_id)
         else:
             await message.answer(
                 "Рулетка уже крутится! Используй /slots force для принудительного перезапуска.",

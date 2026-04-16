@@ -331,10 +331,13 @@ async def slots_callback(query: CallbackQuery, callback_data: SlotsCallback):
     if action == "select":
         bet_type = callback_data.bet_type
         if bet_type == "number":
-            await query.message.edit_text(
-                "Выберите число:",
-                reply_markup=build_number_keyboard(),
-            )
+            try:
+                await query.message.edit_text(
+                    "Выберите число:",
+                    reply_markup=build_number_keyboard(),
+                )
+            except Exception:
+                pass
         else:
             bet_type_names = {
                 "red": "🔴 Красное",
@@ -346,30 +349,39 @@ async def slots_callback(query: CallbackQuery, callback_data: SlotsCallback):
                 "dozen3": "3️⃣ 3-я дюжина",
             }
             display_name = bet_type_names.get(bet_type, bet_type)
-            await query.message.edit_text(
-                f"Выберите ставку на {display_name}:",
-                reply_markup=build_amount_keyboard(bet_type),
-            )
+            try:
+                await query.message.edit_text(
+                    f"Выберите ставку на {display_name}:",
+                    reply_markup=build_amount_keyboard(bet_type),
+                )
+            except Exception:
+                pass
         return
 
     if action == "select_num":
         number = callback_data.number
-        await query.message.edit_text(
-            f"Выберите ставку на число {number}:",
-            reply_markup=build_amount_keyboard("number", number),
-        )
+        try:
+            await query.message.edit_text(
+                f"Выберите ставку на число {number}:",
+                reply_markup=build_amount_keyboard("number", number),
+            )
+        except Exception:
+            pass
         return
 
     if action == "back":
         # Go back to bet type selection
-        await query.message.edit_text(
-            "🎰 <b>Рулетка</b>\n\n"
-            "Ставки: 1-100 см\n"
-            "Время на ставки: 30 сек\n\n"
-            "Выберите тип ставки:",
-            reply_markup=build_bet_type_keyboard(),
-            parse_mode=ParseMode.HTML,
-        )
+        try:
+            await query.message.edit_text(
+                "🎰 <b>Рулетка</b>\n\n"
+                "Ставки: 1-100 см\n"
+                "Время на ставки: 30 сек\n\n"
+                "Выберите тип ставки:",
+                reply_markup=build_bet_type_keyboard(),
+                parse_mode=ParseMode.HTML,
+            )
+        except Exception:
+            pass
         return
 
     if action == "confirm":
@@ -414,9 +426,12 @@ async def slots_callback(query: CallbackQuery, callback_data: SlotsCallback):
         user_names = await get_user_names(chat_id, user_ids)
         bet_text = format_bets_text(bets, user_names)
 
-        await query.message.edit_text(
-            f"🎰 <b>Рулетка</b>\n\nСтавки:\n{bet_text}\n\nВыберите тип ставки:",
-            reply_markup=build_bet_type_keyboard(),
-            parse_mode=ParseMode.HTML,
-        )
+        try:
+            await query.message.edit_text(
+                f"🎰 <b>Рулетка</b>\n\nСтавки:\n{bet_text}\n\nВыберите тип ставки:",
+                reply_markup=build_bet_type_keyboard(),
+                parse_mode=ParseMode.HTML,
+            )
+        except Exception:
+            pass
         return

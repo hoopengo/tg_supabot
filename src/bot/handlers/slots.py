@@ -24,6 +24,7 @@ router = Router()
 
 REDIS_ACTIVE_KEY = "slots_active"
 REDIS_BETS_KEY = "slots_bets"
+REDIS_LOCK_KEY = "slots_lock"
 
 MIN_BET = 1
 MAX_BET = 100
@@ -35,6 +36,23 @@ def get_active_key(chat_id: int) -> str:
 
 def get_bets_key(chat_id: int) -> str:
     return f"{REDIS_BETS_KEY}:{chat_id}"
+
+
+def get_lock_key(chat_id: int) -> str:
+    return f"{REDIS_LOCK_KEY}:{chat_id}"
+
+
+async def acquire_bets_lock(chat_id: int) -> bool:
+    lock_key = get_lock_key(chat_id)
+    try:
+        result = await message_cache.set(lock_key, "1", nx=True, ex=5)
+        return result
+    except Exception:
+        return False
+
+
+async def release_bets_lock(chat_id: int) -> None:
+    await message_cache.delete(get_lock_key(chat_id))
 
 
 async def check_roulette_active(chat_id: int) -> bool:
@@ -56,27 +74,39 @@ async def save_bet(
     chat_id: int, user_id: int, bet_type: str, number: int, amount: int
 ) -> bool:
     key = get_bets_key(chat_id)
-    existing = await message_cache.get(key)
-    bets = json.loads(existing) if existing else []
 
-    # Check if user already has this bet type (for number bet, check number too)
-    for bet in bets:
-        if bet["user_id"] == user_id and bet["bet_type"] == bet_type:
-            if bet_type != "number" or bet.get("number") == number:
-                bet["amount"] = amount
-                break
+    # Wait for lock with retry
+    for _ in range(20):
+        if await acquire_bets_lock(chat_id):
+            break
+        await asyncio.sleep(0.05)
     else:
-        bets.append(
-            {
-                "user_id": user_id,
-                "bet_type": bet_type,
-                "number": number,
-                "amount": amount,
-            }
-        )
+        return False
 
-    await message_cache.setex(key, SPIN_DURATION + 60, json.dumps(bets))
-    return True
+    try:
+        existing = await message_cache.get(key)
+        bets = json.loads(existing) if existing else []
+
+        # Check if user already has this bet type (for number bet, check number too)
+        for bet in bets:
+            if bet["user_id"] == user_id and bet["bet_type"] == bet_type:
+                if bet_type != "number" or bet.get("number") == number:
+                    bet["amount"] = amount
+                    break
+        else:
+            bets.append(
+                {
+                    "user_id": user_id,
+                    "bet_type": bet_type,
+                    "number": number,
+                    "amount": amount,
+                }
+            )
+
+        await message_cache.setex(key, SPIN_DURATION + 60, json.dumps(bets))
+        return True
+    finally:
+        await release_bets_lock(chat_id)
 
 
 async def get_bets(chat_id: int) -> list:

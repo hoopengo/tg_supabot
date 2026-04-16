@@ -70,7 +70,8 @@ async def check_roulette_active(chat_id: int) -> bool:
 
 async def set_roulette_active(chat_id: int, message_id: int) -> None:
     key = get_active_key(chat_id)
-    await message_cache.setex(key, SPIN_DURATION + 10, str(message_id))
+    # TTL must be large enough to survive extended betting (SPIN_DURATION resets per bet)
+    await message_cache.setex(key, SPIN_DURATION * 20 + 60, str(message_id))
 
 
 async def clear_roulette_active(chat_id: int) -> None:
@@ -252,7 +253,10 @@ async def finish_roulette(bot, chat_id: int, message_id: int) -> None:
     while True:
         await asyncio.sleep(1)
 
-        if not await check_roulette_active(chat_id):
+        # Check the active key still points to OUR message (guards against /slots force)
+        active_key = get_active_key(chat_id)
+        active_msg = await message_cache.get(active_key)
+        if not active_msg or int(active_msg) != message_id:
             return
 
         last_bet_key = get_last_bet_key(chat_id)
@@ -345,9 +349,8 @@ async def slots_command(message: Message):
 
 @router.callback_query(SlotsCallback.filter())
 async def slots_callback(query: CallbackQuery, callback_data: SlotsCallback):
-    await query.answer()
-
     if not query.message:
+        await query.answer()
         return
 
     chat_id = query.message.chat.id
@@ -355,6 +358,7 @@ async def slots_callback(query: CallbackQuery, callback_data: SlotsCallback):
     action = callback_data.action
 
     if action == "close":
+        await query.answer()
         await query.message.delete()
         return
 
@@ -363,6 +367,7 @@ async def slots_callback(query: CallbackQuery, callback_data: SlotsCallback):
         return
 
     if action == "select":
+        await query.answer()
         bet_type = callback_data.bet_type
         if bet_type == "number":
             try:
@@ -393,6 +398,7 @@ async def slots_callback(query: CallbackQuery, callback_data: SlotsCallback):
         return
 
     if action == "select_num":
+        await query.answer()
         number = callback_data.number
         try:
             await query.message.edit_text(
@@ -404,6 +410,7 @@ async def slots_callback(query: CallbackQuery, callback_data: SlotsCallback):
         return
 
     if action == "back":
+        await query.answer()
         # Go back to bet type selection
         try:
             await query.message.edit_text(

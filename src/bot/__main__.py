@@ -25,6 +25,7 @@ COMMANDS = [
     BotCommand(command="sanitary", description="Проверка санитарной зоны"),
     BotCommand(command="all", description="Упомянуть всех"),
     BotCommand(command="top_toxic", description="Топ токсичных"),
+    BotCommand(command="transfer", description="Перевести сантиметры"),
     BotCommand(command="create_queue", description="Создать очередь"),
     BotCommand(command="queues", description="Список очередей"),
     BotCommand(command="switch", description="Поменяться местами"),

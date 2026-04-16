@@ -167,6 +167,64 @@ async def update_dick_size(
         await s.commit()
 
 
+async def transfer_penis_size(
+    from_user_id: int,
+    to_user_id: int,
+    chat_id: int,
+    amount: int,
+) -> tuple[bool, str]:
+    """
+    Transfer centimeters from one user to another.
+
+    Args:
+        from_user_id: Sender user ID
+        to_user_id: Receiver user ID
+        chat_id: Chat ID where both users are
+        amount: Amount of centimeters to transfer
+
+    Returns:
+        (success, message)
+    """
+    if amount <= 0:
+        return False, "Сумма должна быть больше нуля."
+
+    if from_user_id == to_user_id:
+        return False, "Нельзя перевести сантиметры себе."
+
+    async with session() as s:
+        sender = await s.scalar(
+            select(UserModel).where(
+                UserModel.user_id == from_user_id, UserModel.chat_id == chat_id
+            )
+        )
+
+        if not sender:
+            return False, "Отправитель не найден."
+
+        if sender.penis_size < amount:
+            return (
+                False,
+                f"У тебя недостаточно сантиметров. У тебя {sender.penis_size} см.",
+            )
+
+        receiver = await s.scalar(
+            select(UserModel).where(
+                UserModel.user_id == to_user_id, UserModel.chat_id == chat_id
+            )
+        )
+
+        if not receiver:
+            return False, "Получатель не найден."
+
+        # Atomic transfer
+        sender.penis_size -= amount
+        receiver.penis_size += amount
+
+        await s.commit()
+
+        return True, f"Успешно переведено {amount} см."
+
+
 async def update_toxicity_level(
     user_id: int,
     chat_id: int,

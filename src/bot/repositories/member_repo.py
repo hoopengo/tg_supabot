@@ -191,7 +191,3 @@ async def recalculate_positions(queue_id: int) -> None:
 
         for idx, member in enumerate(members, start=1):
             member.position = idx
-
-
-async def get_position_lock_key(queue_id: int) -> str:
-    return f"queue_lock:{queue_id}"

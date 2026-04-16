@@ -5,7 +5,7 @@ from bot.db.methods import get_members
 
 from aiogram.filters import Command
 from aiogram.exceptions import TelegramBadRequest
-from bot.middlewares.toxity_middleware import ToxityMessageMiddleware
+from bot.middlewares.toxicity_middleware import ToxicityMessageMiddleware
 
 toxicity_router = Router()
 toxicity_router.message.filter(F.chat.type != "private")

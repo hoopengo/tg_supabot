@@ -37,7 +37,12 @@ async def _command_start_public_handler(message: Message):
         )
 
     try:
-        await add_user(message.from_user.id, message.chat.id)
+        await add_user(
+            message.from_user.id,
+            message.chat.id,
+            username=message.from_user.username,
+            first_name=message.from_user.first_name,
+        )
     except Exception as err:
         return await message.answer(f"Произошла ошибка: {err}")
     else:

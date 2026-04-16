@@ -16,7 +16,7 @@ async def _toxicity_handler(message: Message) -> None:
         await update_toxicity_level(message.from_user.id, message.chat.id, +1)
 
 
-class ToxityMessageMiddleware(BaseMiddleware):
+class ToxicityMessageMiddleware(BaseMiddleware):
     async def __call__(
         self,
         handler: Callable[[Message, Dict[str, Any]], Awaitable[Any]],

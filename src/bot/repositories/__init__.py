@@ -1,5 +1,3 @@
-from .queue_repo import *
-from .member_repo import *
-from .swap_repo import *
-from .admin_repo import *
-from .log_repo import *
+from . import queue_repo, member_repo, swap_repo, admin_repo, log_repo
+
+__all__ = ["queue_repo", "member_repo", "swap_repo", "admin_repo", "log_repo"]

@@ -12,6 +12,7 @@ classifiers = [
 ]
 dependencies = [
     "aiogram>=3.12,<4",
+    "aiohttp>=3.9,<4",
     "pydantic-settings>=2.0.2,<3",
     "betterlogging>=1.0.0,<2",
     "sqlalchemy[asyncio]>=2.0.19,<3",

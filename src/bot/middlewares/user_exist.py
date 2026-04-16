@@ -1,3 +1,4 @@
+import logging
 from typing import Any, Awaitable, Callable, Dict
 
 from aiogram import BaseMiddleware
@@ -23,7 +24,8 @@ class UserExistCallbackMiddleware(BaseMiddleware):
                     username=event.from_user.username,
                     first_name=event.from_user.first_name,
                 )
-            except Exception as err:
-                return await event.answer(f"Произошла ошибка: {err}")
+            except Exception:
+                logging.error("Failed to auto-register user", exc_info=True)
+                return await event.answer("Произошла ошибка при регистрации.")
 
         return await handler(event, data)

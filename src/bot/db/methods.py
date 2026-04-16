@@ -116,14 +116,24 @@ async def get_user_by_username(username: str, chat_id: int) -> UserModel | None:
 
 
 async def get_user(user_id: int, chat_id: int):
-    users = await get_members(chat_id)
-    position = 1
-    for user in users:
-        if user.user_id == user_id:
-            user.rank = position
-            return user
-        position += 1
-    return None
+    async with session() as s:
+        user = await s.scalar(
+            select(UserModel).where(
+                UserModel.user_id == user_id, UserModel.chat_id == chat_id
+            )
+        )
+        if user is None:
+            return None
+
+        # Calculate rank based on penis_size
+        rank_result = await s.scalar(
+            select(func.count(UserModel.id)).where(
+                UserModel.chat_id == chat_id,
+                UserModel.penis_size > user.penis_size,
+            )
+        )
+        user.rank = (rank_result or 0) + 1
+        return user
 
 
 async def last_penis_update_now(
@@ -140,7 +150,6 @@ async def last_penis_update_now(
         ).first()
 
         result.last_penis_update = datetime.utcnow()
-        await s.commit()
 
     return result
 
@@ -163,8 +172,6 @@ async def update_dick_size(
 
         if result.penis_size < 0:
             result.penis_size = 0
-
-        await s.commit()
 
 
 async def transfer_penis_size(
@@ -220,8 +227,6 @@ async def transfer_penis_size(
         sender.penis_size -= amount
         receiver.penis_size += amount
 
-        await s.commit()
-
         return True, f"Успешно переведено {amount} см."
 
 
@@ -243,8 +248,6 @@ async def update_toxicity_level(
 
         if result.toxicity_level < 0:
             result.toxicity_level = 0
-
-        await s.commit()
 
 
 async def get_message_data(message_id: int) -> dict | None:

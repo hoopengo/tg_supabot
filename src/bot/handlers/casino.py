@@ -216,11 +216,11 @@ async def play_casino(message: Message):
         else:
             result_text = f"🎉 Джекпот! {slots[0]}{slots[0]}{slots[0]}\n{msg}"
     elif len_unique == 2:
-        symbol = list(unique - set(slots[:1]))[0] if slots[0] == slots[1] else slots[0]
-        if slots.count(slots[0]) == 2:
-            symbol = slots[0]
-        else:
-            symbol = slots[2]
+        # Find the symbol that appears twice
+        for s in unique:
+            if slots.count(s) == 2:
+                symbol = s
+                break
         if symbol in SYMBOL_PAYOUTS:
             multiplier = SYMBOL_PAYOUTS[symbol]
             win = bet * multiplier
@@ -230,18 +230,8 @@ async def play_casino(message: Message):
             await update_penis_safe(user_id, chat_id, -bet, bet)
             result_text = f"😢 Два совпадения, но не выигрышные\nПроиграл {bet} см"
     else:
-        if slots[0] == slots[1] or slots[1] == slots[2]:
-            symbol = slots[1]
-            if symbol in SYMBOL_PAYOUTS:
-                win = bet * SYMBOL_PAYOUTS[symbol]
-                _, actual_win, msg = await update_penis_safe(user_id, chat_id, win, bet)
-                result_text = f"🎵 {symbol}!\n{msg}"
-            else:
-                await update_penis_safe(user_id, chat_id, -bet, bet)
-                result_text = f"😢 Без выигрыша\nПроиграл {bet} см"
-        else:
-            await update_penis_safe(user_id, chat_id, -bet, bet)
-            result_text = f"😢 {slots[0]}{slots[1]}{slots[2]}\nПроиграл {bet} см"
+        await update_penis_safe(user_id, chat_id, -bet, bet)
+        result_text = f"😢 {slots[0]}{slots[1]}{slots[2]}\nПроиграл {bet} см"
 
     new_balance = await get_user_penis(user_id, chat_id)
     result_text += f"\n💰 Баланс: {new_balance} см"

@@ -220,6 +220,9 @@ async def move_user_up(
 ) -> tuple[bool, str]:
     lock = _get_queue_lock(queue_id)
     async with lock:
+        queue = await queue_repo.get_queue(queue_id)
+        if not queue:
+            return False, "Очередь не найдена."
         member = await member_repo.get_member_by_user(queue_id, user_id)
         if not member:
             return False, "Пользователь не в очереди."
@@ -229,7 +232,7 @@ async def move_user_up(
         if success:
             await queue_repo.touch_queue(queue_id)
             await log_repo.log_action(
-                chat_id=0,
+                chat_id=queue.chat_id,
                 actor_user_id=actor_user_id,
                 action="user_moved_up",
                 queue_id=queue_id,
@@ -243,6 +246,9 @@ async def move_user_down(
 ) -> tuple[bool, str]:
     lock = _get_queue_lock(queue_id)
     async with lock:
+        queue = await queue_repo.get_queue(queue_id)
+        if not queue:
+            return False, "Очередь не найдена."
         member = await member_repo.get_member_by_user(queue_id, user_id)
         if not member:
             return False, "Пользователь не в очереди."
@@ -253,7 +259,7 @@ async def move_user_down(
         if success:
             await queue_repo.touch_queue(queue_id)
             await log_repo.log_action(
-                chat_id=0,
+                chat_id=queue.chat_id,
                 actor_user_id=actor_user_id,
                 action="user_moved_down",
                 queue_id=queue_id,
@@ -270,6 +276,9 @@ async def set_user_position(
 ) -> tuple[bool, str]:
     lock = _get_queue_lock(queue_id)
     async with lock:
+        queue = await queue_repo.get_queue(queue_id)
+        if not queue:
+            return False, "Очередь не найдена."
         member = await member_repo.get_member_by_user(queue_id, user_id)
         if not member:
             return False, "Пользователь не в очереди."
@@ -280,7 +289,7 @@ async def set_user_position(
         if success:
             await queue_repo.touch_queue(queue_id)
             await log_repo.log_action(
-                chat_id=0,
+                chat_id=queue.chat_id,
                 actor_user_id=actor_user_id,
                 action="user_position_set",
                 queue_id=queue_id,

@@ -1,8 +1,15 @@
 from pydantic import Field, SecretStr
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Config(BaseSettings):
+    model_config = SettingsConfigDict(
+        case_sensitive=False,
+        env_prefix="",
+        env_file_encoding="utf-8",
+        env_file=".env",
+    )
+
     TOKEN: SecretStr = Field()
     ADMIN_IDS: list[int] = [876980354]
     POSTGRES_USER: str = Field()
@@ -14,12 +21,6 @@ class Config(BaseSettings):
     REDIS_PORT: int = Field()
     HF_TOKEN: str = Field()
     BASE_TOXICITY_ENCOURAGE: float = 0.8
-
-    class Config:
-        case_sensitive = False
-        env_prefix = ""
-        env_file_encoding = "utf-8"
-        env_file = ".env"
 
 
 config = Config()

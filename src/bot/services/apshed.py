@@ -19,7 +19,10 @@ async def minus_penis_cron(bot: Bot):
         chats[user.chat_id].append(user)
 
     for chat_id, user_members in chats.items():
-        random_members = random.sample(user_members, 3)
+        if len(user_members) < 1:
+            continue
+        sample_count = min(3, len(user_members))
+        random_members = random.sample(user_members, sample_count)
         list_members = []
 
         for member in random_members:

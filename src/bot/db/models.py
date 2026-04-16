@@ -67,7 +67,7 @@ class StickerMessageModel(Base):
         """
 
         return {
-            "id": self.file_id,
+            "id": str(self.id),
             "file_id": self.file_id,
             "set_name": self.set_name,
         }
@@ -88,7 +88,7 @@ class UserModel(Base):
     sanitary_last = Column(Boolean, default=False)
     penis_size = Column(Integer, default=0, index=True)
     last_penis_update = Column(
-        DateTime, default=datetime.utcnow() - timedelta(hours=12)
+        DateTime, default=lambda: datetime.utcnow() - timedelta(hours=12)
     )
     toxicity_level = Column(Integer, default=0, nullable=False)
     casino_lucky = Column(Boolean, default=False, nullable=False)

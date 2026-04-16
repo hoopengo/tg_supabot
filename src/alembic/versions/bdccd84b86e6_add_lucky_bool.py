@@ -22,7 +22,12 @@ def upgrade() -> None:
     op.create_index(
         op.f("ix_queue_members_queue_id"), "queue_members", ["queue_id"], unique=False
     )
-    op.add_column("user", sa.Column("casino_lucky", sa.Boolean(), nullable=False))
+    # Сначала добавляем nullable колонку
+    op.add_column("user", sa.Column("casino_lucky", sa.Boolean(), nullable=True))
+    # Заполняем существующие записи значением false
+    op.execute('UPDATE "user" SET casino_lucky = false WHERE casino_lucky IS NULL')
+    # Теперь делаем NOT NULL
+    op.alter_column("user", "casino_lucky", existing_type=sa.Boolean(), nullable=False)
     op.alter_column(
         "user", "toxicity_level", existing_type=sa.INTEGER(), nullable=False
     )

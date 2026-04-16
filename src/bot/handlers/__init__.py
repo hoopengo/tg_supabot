@@ -10,6 +10,7 @@ from bot.handlers.start import start_router
 from bot.handlers.sticker import sticker_router
 from bot.handlers.super_admin import super_admin_router
 from bot.handlers.toxicity_control import toxicity_router
+from bot.handlers.slots import router as slots_router
 from bot.handlers.transfer import transfer_router
 
 routers_list = (
@@ -24,6 +25,7 @@ routers_list = (
     toxicity_router,
     transfer_router,
     casino_router,
+    slots_router,
 )
 
 __all__ = [

@@ -38,7 +38,7 @@ COMMANDS = [
     BotCommand(command="casino", description="Казино Писюка"),
     # BotCommand(command="casino_top", description="Топ казино"),
     BotCommand(command="settings", description="Настройки команд"),
-    BotCommand(command="ai", description="AI ассистент (на основе истории чата)"),
+    BotCommand(command="ask", description="AI ассистент (на основе истории чата)"),
 ]
 
 

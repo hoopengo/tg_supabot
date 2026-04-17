@@ -10,7 +10,7 @@ from aiogram.types import Message
 from openai import AsyncOpenAI
 
 from bot.redis import message_cache
-from bot.services.admin_service import is_admin, is_super_admin, is_bot_creator
+from bot.services.admin_service import is_admin, is_bot_creator, is_super_admin
 from bot.services.auto_delete import delete_command_and_response
 from bot.services.chat_history import get_chat_history
 
@@ -95,27 +95,32 @@ def _parse_refs(text: str) -> tuple[str, list[int]]:
         except ValueError:
             continue
     # Remove the [REF:...] tags from the visible text
-    clean = _REF_PATTERN.sub("", text).strip()
+    clean = _REF_PATTERN.sub("", text)
     # Collapse multiple spaces left after removal
     clean = re.sub(r" {2,}", " ", clean)
+    # Remove spaces before punctuation left after tag removal (e.g. " ." -> ".")
+    clean = re.sub(r"\s+([.,;:!?])", r"\1", clean)
+    # Remove orphaned punctuation-only remnants (e.g. standalone " , , .")
+    clean = re.sub(r"(?:^[\s.,;:!?]+$)", "", clean, flags=re.MULTILINE)
+    clean = clean.strip()
     return clean, refs
 
 
 # --- Handler ---
 
 
-@ai_router.message(Command("ai", ignore_case=True), F.chat.type != "private")
+@ai_router.message(Command("ask", ignore_case=True), F.chat.type != "private")
 async def ai_command(message: Message):
     user_id = message.from_user.id
     chat_id = message.chat.id
 
-    # Extract query after /ai
+    # Extract query after /ask
     text = message.text or ""
     parts = text.split(maxsplit=1)
     if len(parts) < 2 or not parts[1].strip():
         bot_msg = await message.answer(
             "<b>AI ассистент</b>\n\n"
-            "Использование: <code>/ai ваш вопрос</code>\n\n"
+            "Использование: <code>/ask ваш вопрос</code>\n\n"
             "Бот проанализирует историю чата и ответит на ваш вопрос.",
             parse_mode=ParseMode.HTML,
         )

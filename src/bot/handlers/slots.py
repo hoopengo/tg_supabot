@@ -12,6 +12,7 @@ from sqlalchemy import select
 from bot.db import UserModel, session
 from bot.handlers.casino import get_user_penis, update_penis_safe
 from bot.keyboards.slots_kb import (
+    ALL_IN_MARKER,
     BLACK_NUMBERS,
     RED_NUMBERS,
     SPIN_DURATION,
@@ -445,13 +446,24 @@ async def slots_callback(query: CallbackQuery, callback_data: SlotsCallback):
         number = callback_data.number
         amount = callback_data.amount
 
+        current_penis = await get_user_penis(user_id, chat_id)
+
+        # Resolve all-in: bet the entire balance (capped at MAX_BET)
+        if amount == ALL_IN_MARKER:
+            amount = min(current_penis, MAX_BET)
+            if amount < MIN_BET:
+                await query.answer(
+                    f"Недостаточно см для ставки! Баланс: {current_penis} см",
+                    show_alert=True,
+                )
+                return
+
         if amount < MIN_BET or amount > MAX_BET:
             await query.answer(
                 f"Ставка должна быть {MIN_BET}-{MAX_BET} см", show_alert=True
             )
             return
 
-        current_penis = await get_user_penis(user_id, chat_id)
         if current_penis < amount:
             await query.answer(
                 f"Недостаточно см! Баланс: {current_penis} см", show_alert=True

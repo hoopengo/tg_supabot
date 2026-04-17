@@ -24,7 +24,7 @@ TOGGLEABLE_COMMANDS = set(
         "queues",
         "create_queue",
         "switch",
-        "ai",
+        "ask",
     ]
 )
 

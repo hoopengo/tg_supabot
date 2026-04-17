@@ -94,6 +94,9 @@ def build_number_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
+ALL_IN_MARKER = -1
+
+
 def build_amount_keyboard(bet_type: str, number: int = 0) -> InlineKeyboardMarkup:
     amounts = [1, 5, 10, 25, 50, 100]
     rows = []
@@ -109,6 +112,16 @@ def build_amount_keyboard(bet_type: str, number: int = 0) -> InlineKeyboardMarku
             for amt in row
         ]
         rows.append(btn_row)
+    rows.append(
+        [
+            InlineKeyboardButton(
+                text="🔥 All In",
+                callback_data=SlotsCallback(
+                    action="confirm", bet_type=bet_type, number=number, amount=ALL_IN_MARKER
+                ).pack(),
+            )
+        ]
+    )
     rows.append(
         [
             InlineKeyboardButton(

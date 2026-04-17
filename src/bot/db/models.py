@@ -245,6 +245,7 @@ class ChatSettingsModel(Base):
     cmd_queues = Column(Boolean, default=True, nullable=False)
     cmd_create_queue = Column(Boolean, default=True, nullable=False)
     cmd_switch = Column(Boolean, default=True, nullable=False)
+    cmd_ai = Column(Boolean, default=True, nullable=False)
 
     updated_at = Column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
@@ -273,6 +274,7 @@ class ChatSettingsModel(Base):
         "queues": "cmd_queues",
         "create_queue": "cmd_create_queue",
         "switch": "cmd_switch",
+        "ai": "cmd_ai",
     }
 
     COMMAND_LABELS = {
@@ -289,6 +291,7 @@ class ChatSettingsModel(Base):
         "queues": "Очереди (/queues)",
         "create_queue": "Создать очередь (/create_queue)",
         "switch": "Обмен местами (/switch)",
+        "ai": "AI ассистент (/ai)",
     }
 
     def is_command_enabled(self, command: str) -> bool:

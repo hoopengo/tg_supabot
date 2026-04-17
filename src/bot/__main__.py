@@ -14,6 +14,7 @@ from bot.config import config
 from bot.handlers import routers_list
 from bot.middlewares.command_toggle import CommandToggleMiddleware
 from bot.middlewares.flood_control import FloodControlMiddleware
+from bot.middlewares.message_history import MessageHistoryMiddleware
 from bot.middlewares.toxicity_middleware import ToxicityMessageMiddleware
 from bot.middlewares.user_exist import UserExistCallbackMiddleware
 from bot.services import apshed, broadcaster
@@ -37,6 +38,7 @@ COMMANDS = [
     BotCommand(command="casino", description="Казино Писюка"),
     # BotCommand(command="casino_top", description="Топ казино"),
     BotCommand(command="settings", description="Настройки команд"),
+    BotCommand(command="ai", description="AI ассистент (на основе истории чата)"),
 ]
 
 
@@ -105,6 +107,7 @@ async def main():
     dp.message.outer_middleware(FloodControlMiddleware())
     dp.message.outer_middleware(CommandToggleMiddleware())
     dp.message.outer_middleware(UserExistCallbackMiddleware())
+    dp.message.outer_middleware(MessageHistoryMiddleware())
     dp.message.outer_middleware(ToxicityMessageMiddleware())
     dp.message.middleware(ChatActionMiddleware())
 

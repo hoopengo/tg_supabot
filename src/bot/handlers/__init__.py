@@ -1,6 +1,7 @@
 """Import all routers and add them to routers_list."""
 
 from bot.handlers.admin import admin_router
+from bot.handlers.ai import ai_router
 from bot.handlers.casino import router as casino_router
 from bot.handlers.mentions import mentions_router
 from bot.handlers.owner import owner_router
@@ -30,6 +31,7 @@ routers_list = (
     transfer_router,
     casino_router,
     slots_router,
+    ai_router,
 )
 
 __all__ = [

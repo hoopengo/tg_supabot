@@ -13,6 +13,7 @@ from bot.keyboards.queue_kb import (
     admin_management_keyboard,
 )
 from bot.services import admin_service
+from bot.services.auto_delete import delete_command_and_response, delete_messages_later, PANEL_INACTIVITY_TIMEOUT
 
 logger = logging.getLogger(__name__)
 
@@ -40,15 +41,28 @@ async def cmd_superadmin(message: Message):
     admins = await admin_service.list_admins(chat_id)
 
     if not admins:
-        await message.answer(
+        bot_msg = await message.answer(
             "<b>Панель супер-администратора</b>\n\nНет администраторов.\nИспользуйте /add_admin для добавления.",
             parse_mode=ParseMode.HTML,
+        )
+        await delete_messages_later(
+            message.bot, chat_id, [message.message_id], 2
+        )
+        await delete_messages_later(
+            message.bot, chat_id, [bot_msg.message_id], PANEL_INACTIVITY_TIMEOUT
         )
         return
 
     text = _admin_list_text(admins)
     kb = admin_management_keyboard(admins, chat_id)
-    await message.answer(text, reply_markup=kb, parse_mode=ParseMode.HTML)
+    bot_msg = await message.answer(text, reply_markup=kb, parse_mode=ParseMode.HTML)
+    # Delete user command, auto-delete panel after inactivity
+    await delete_messages_later(
+        message.bot, chat_id, [message.message_id], 2
+    )
+    await delete_messages_later(
+        message.bot, chat_id, [bot_msg.message_id], PANEL_INACTIVITY_TIMEOUT
+    )
 
 
 # --- /add_admin command ---
@@ -72,9 +86,10 @@ async def cmd_add_admin(message: Message):
     else:
         args = message.text.split(maxsplit=1)
         if len(args) < 2 or not args[1].strip():
-            await message.answer(
+            bot_msg = await message.answer(
                 "Ответьте на сообщение пользователя или: /add_admin @username"
             )
+            await delete_command_and_response(message, bot_msg, delay=10)
             return
 
         raw = args[1].strip()
@@ -82,9 +97,10 @@ async def cmd_add_admin(message: Message):
             username = raw.lstrip("@")
             user = await get_user_by_username(username, chat_id)
             if not user:
-                await message.answer(
+                bot_msg = await message.answer(
                     "Пользователь не найден в базе. Он должен хотя бы раз написать в чат."
                 )
+                await delete_command_and_response(message, bot_msg, delay=10)
                 return
             target_user_id = user.user_id
             first_name = user.first_name
@@ -92,13 +108,15 @@ async def cmd_add_admin(message: Message):
             try:
                 target_user_id = int(raw)
             except ValueError:
-                await message.answer("Укажите @username или числовой ID.")
+                bot_msg = await message.answer("Укажите @username или числовой ID.")
+                await delete_command_and_response(message, bot_msg, delay=10)
                 return
 
     success, msg = await admin_service.add_admin(
         chat_id, target_user_id, added_by, first_name=first_name, username=username
     )
-    await message.answer(msg)
+    bot_msg = await message.answer(msg)
+    await delete_command_and_response(message, bot_msg)
 
 
 # --- /remove_admin command ---
@@ -118,18 +136,21 @@ async def cmd_remove_admin(message: Message):
     else:
         args = message.text.split(maxsplit=1)
         if len(args) < 2 or not args[1].strip():
-            await message.answer(
+            bot_msg = await message.answer(
                 "Ответьте на сообщение администратора или: /remove_admin <user_id>"
             )
+            await delete_command_and_response(message, bot_msg, delay=10)
             return
         try:
             target_user_id = int(args[1].strip())
         except ValueError:
-            await message.answer("Неверный формат user_id.")
+            bot_msg = await message.answer("Неверный формат user_id.")
+            await delete_command_and_response(message, bot_msg, delay=10)
             return
 
     success, msg = await admin_service.remove_admin(chat_id, target_user_id, removed_by)
-    await message.answer(msg)
+    bot_msg = await message.answer(msg)
+    await delete_command_and_response(message, bot_msg)
 
 
 # --- Callback handlers ---

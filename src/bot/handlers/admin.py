@@ -18,6 +18,10 @@ from bot.keyboards.queue_kb import (
 import html
 
 from bot.services import queue_service
+from bot.services.auto_delete import (
+    delete_messages_later,
+    PANEL_INACTIVITY_TIMEOUT,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -153,14 +157,28 @@ async def cmd_admin(message: Message):
             kb = queue_admin_keyboard(
                 queue.id, queue.status.value == "open", members, page=0
             )
-            await message.answer(text, reply_markup=kb, parse_mode=ParseMode.HTML)
+            bot_msg = await message.answer(text, reply_markup=kb, parse_mode=ParseMode.HTML)
+            # Delete user command, auto-delete panel after inactivity
+            await delete_messages_later(
+                message.bot, chat_id, [message.message_id], 2
+            )
+            await delete_messages_later(
+                message.bot, chat_id, [bot_msg.message_id], PANEL_INACTIVITY_TIMEOUT
+            )
             return
 
     queues = await queue_service.get_active_queues(chat_id)
     kb = admin_queue_list_keyboard(queues, page=0, per_page=PER_PAGE)
     text = _queue_list_text(queues)
 
-    await message.answer(text, reply_markup=kb, parse_mode=ParseMode.HTML)
+    bot_msg = await message.answer(text, reply_markup=kb, parse_mode=ParseMode.HTML)
+    # Delete user command, auto-delete panel after inactivity
+    await delete_messages_later(
+        message.bot, chat_id, [message.message_id], 2
+    )
+    await delete_messages_later(
+        message.bot, chat_id, [bot_msg.message_id], PANEL_INACTIVITY_TIMEOUT
+    )
 
 
 @admin_router.message(Command("queue"), IsGroupChatFilter(), IsAdminFilter())

@@ -2,6 +2,7 @@ from aiogram import F, Router
 from aiogram.enums import ParseMode
 from aiogram.types import Message, Chat
 from bot.db.methods import get_members
+from bot.services.auto_delete import delete_command_and_response
 
 from aiogram.filters import Command
 from aiogram.exceptions import TelegramBadRequest
@@ -46,6 +47,7 @@ async def _command_top_toxic_handler(message: Message):
             f"<b>{v}|{member.user.full_name} — {user.toxicity_level}</b>"
         )
 
-    await message.answer(
+    bot_msg = await message.answer(
         "Топ 10 токсиков\n" + "\n".join(users_statistic), parse_mode=ParseMode.HTML
     )
+    await delete_command_and_response(message, bot_msg)

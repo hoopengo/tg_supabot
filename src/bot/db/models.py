@@ -223,3 +223,76 @@ class AuditLogModel(Base):
 
     def __repr__(self):
         return f"<AuditLog {self.id} {self.action}>"
+
+
+class ChatSettingsModel(Base):
+    __tablename__ = "chat_settings"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    chat_id = Column(BigInteger, nullable=False, unique=True, index=True)
+
+    # Command toggles (True = enabled)
+    cmd_dick = Column(Boolean, default=True, nullable=False)
+    cmd_top_dick = Column(Boolean, default=True, nullable=False)
+    cmd_stats = Column(Boolean, default=True, nullable=False)
+    cmd_casino = Column(Boolean, default=True, nullable=False)
+    cmd_casino_top = Column(Boolean, default=True, nullable=False)
+    cmd_slots = Column(Boolean, default=True, nullable=False)
+    cmd_sanitary = Column(Boolean, default=True, nullable=False)
+    cmd_all = Column(Boolean, default=True, nullable=False)
+    cmd_top_toxic = Column(Boolean, default=True, nullable=False)
+    cmd_transfer = Column(Boolean, default=True, nullable=False)
+    cmd_queues = Column(Boolean, default=True, nullable=False)
+    cmd_create_queue = Column(Boolean, default=True, nullable=False)
+    cmd_switch = Column(Boolean, default=True, nullable=False)
+
+    updated_at = Column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+    def __repr__(self):
+        return f"<ChatSettings chat={self.chat_id}>"
+
+    def __init__(self, chat_id: int, **kwargs):
+        self.chat_id = chat_id
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+    # Map command name -> column attribute name
+    COMMAND_MAP = {
+        "dick": "cmd_dick",
+        "top_dick": "cmd_top_dick",
+        "stats": "cmd_stats",
+        "casino": "cmd_casino",
+        "casino_top": "cmd_casino_top",
+        "slots": "cmd_slots",
+        "sanitary": "cmd_sanitary",
+        "all": "cmd_all",
+        "top_toxic": "cmd_top_toxic",
+        "transfer": "cmd_transfer",
+        "queues": "cmd_queues",
+        "create_queue": "cmd_create_queue",
+        "switch": "cmd_switch",
+    }
+
+    COMMAND_LABELS = {
+        "dick": "Писюн (/dick)",
+        "top_dick": "Топ размеров (/top_dick)",
+        "stats": "Статистика (/stats)",
+        "casino": "Казино (/casino)",
+        "casino_top": "Топ казино (/casino_top)",
+        "slots": "Рулетка (/slots)",
+        "sanitary": "Санитарная зона (/sanitary)",
+        "all": "Упомянуть всех (/all)",
+        "top_toxic": "Топ токсичных (/top_toxic)",
+        "transfer": "Перевод (/transfer)",
+        "queues": "Очереди (/queues)",
+        "create_queue": "Создать очередь (/create_queue)",
+        "switch": "Обмен местами (/switch)",
+    }
+
+    def is_command_enabled(self, command: str) -> bool:
+        attr = self.COMMAND_MAP.get(command)
+        if attr is None:
+            return True  # Unknown commands are enabled by default
+        return getattr(self, attr, True)

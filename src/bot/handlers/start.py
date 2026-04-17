@@ -4,6 +4,7 @@ from aiogram.filters import CommandStart
 from aiogram.types import Message, ReplyKeyboardRemove
 
 from bot.db.methods import add_user, get_user
+from bot.services.auto_delete import delete_command_and_response
 
 start_router = Router()
 
@@ -32,9 +33,11 @@ async def _command_start_private_handler(message: Message):
 )
 async def _command_start_public_handler(message: Message):
     if await get_user(message.from_user.id, message.chat.id) is not None:
-        return await message.answer(
+        bot_msg = await message.answer(
             f"Ты уже зарегестрирован в системе под id: {message.from_user.id}"
         )
+        await delete_command_and_response(message, bot_msg)
+        return
 
     try:
         await add_user(
@@ -44,10 +47,13 @@ async def _command_start_public_handler(message: Message):
             first_name=message.from_user.first_name,
         )
     except Exception as err:
-        return await message.answer(f"Произошла ошибка: {err}")
+        bot_msg = await message.answer(f"Произошла ошибка: {err}")
+        await delete_command_and_response(message, bot_msg, delay=10)
+        return
     else:
         # send start message
-        await message.answer(
+        bot_msg = await message.answer(
             f"Ты был успешно зарегестрирован в системе под id: {message.from_user.id}",
             reply_markup=ReplyKeyboardRemove(),
         )
+        await delete_command_and_response(message, bot_msg)

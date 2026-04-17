@@ -5,6 +5,7 @@ from aiogram.filters import Command
 from aiogram.types import Message
 
 from bot.db.methods import get_user_by_username, transfer_penis_size, get_user
+from bot.services.auto_delete import delete_command_and_response
 
 logger = logging.getLogger(__name__)
 
@@ -37,13 +38,14 @@ async def cmd_transfer(message: Message):
         # Parse: /transfer @username 10 or /transfer 10 @username
         args = message.text.split()[1:]  # Skip command
         if len(args) < 2:
-            await message.answer(
+            bot_msg = await message.answer(
                 "Использование:\n"
                 "/transfer @username 10\n"
                 "или\n"
                 "/transfer 10 @username\n"
                 "или ответьте на сообщение и напишите /transfer 10"
             )
+            await delete_command_and_response(message, bot_msg)
             return
 
         # Try to identify which arg is username and which is amount
@@ -60,35 +62,40 @@ async def cmd_transfer(message: Message):
                     pass
 
         if not username_arg or amount_arg is None:
-            await message.answer(
+            bot_msg = await message.answer(
                 "Укажите @username и сумму (число).\nПример: /transfer @username 10"
             )
+            await delete_command_and_response(message, bot_msg, 10)
             return
 
         # Resolve username to user_id
         username = username_arg.lstrip("@")
         user = await get_user_by_username(username, chat_id)
         if not user:
-            await message.answer(f"Пользователь @{username} не найден в базе.")
+            bot_msg = await message.answer(f"Пользователь @{username} не найден в базе.")
+            await delete_command_and_response(message, bot_msg, 10)
             return
         target_user_id = user.user_id
         amount = amount_arg
 
     # Validate amount
     if amount is None or amount <= 0:
-        await message.answer("Сумма должна быть положительным числом.")
+        bot_msg = await message.answer("Сумма должна быть положительным числом.")
+        await delete_command_and_response(message, bot_msg, 10)
         return
 
     # Check sender has enough
     sender = await get_user(sender_id, chat_id)
     if not sender:
-        await message.answer("Вы не зарегистрированы в системе.")
+        bot_msg = await message.answer("Вы не зарегистрированы в системе.")
+        await delete_command_and_response(message, bot_msg, 10)
         return
 
     if sender.penis_size < amount:
-        await message.answer(
+        bot_msg = await message.answer(
             f"У тебя недостаточно сантиметров. У тебя {sender.penis_size} см."
         )
+        await delete_command_and_response(message, bot_msg, 10)
         return
 
     # Execute transfer
@@ -107,10 +114,12 @@ async def cmd_transfer(message: Message):
         sender_mention = message.from_user.mention_html()
         receiver_mention = f'<a href="tg://user?id={receiver.user_id}">{receiver.first_name or "Пользователь"}</a>'
 
-        await message.answer(
+        bot_msg = await message.answer(
             f"✅ {sender_mention} перевёл {amount} см пользователю {receiver_mention}.\n"
             f"У тебя теперь {sender.penis_size} см.",
             parse_mode=ParseMode.HTML,
         )
+        await delete_command_and_response(message, bot_msg)
     else:
-        await message.answer(f"❌ {msg}")
+        bot_msg = await message.answer(f"❌ {msg}")
+        await delete_command_and_response(message, bot_msg, 10)

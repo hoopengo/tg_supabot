@@ -15,6 +15,11 @@ from bot.keyboards.queue_kb import (
     swap_list_keyboard,
 )
 from bot.services import admin_service, queue_service, swap_service
+from bot.services.auto_delete import (
+    delete_command_and_response,
+    delete_messages_later,
+    PANEL_INACTIVITY_TIMEOUT,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -74,11 +79,13 @@ async def cmd_create_queue(message: Message, bot: Bot):
     chat_id = message.chat.id
     user_id = message.from_user.id
     if not await admin_service.is_admin(chat_id, user_id):
-        await message.answer("Недостаточно прав для создания очереди.")
+        bot_msg = await message.answer("Недостаточно прав для создания очереди.")
+        await delete_command_and_response(message, bot_msg, delay=10)
         return
     title = message.text.split(maxsplit=1)
     if len(title) < 2 or not title[1].strip():
-        await message.answer("Использование: /create_queue <название очереди>")
+        bot_msg = await message.answer("Использование: /create_queue <название очереди>")
+        await delete_command_and_response(message, bot_msg, delay=10)
         return
     queue_title = title[1].strip()
     queue = await queue_service.create_queue(chat_id, queue_title, user_id)
@@ -86,6 +93,8 @@ async def cmd_create_queue(message: Message, bot: Bot):
     kb = queue_user_keyboard(queue.id, is_open=True)
     sent = await message.answer(text, reply_markup=kb, parse_mode=ParseMode.HTML)
     await queue_service.update_queue_message_id(queue.id, sent.message_id)
+    # Delete user's command message; keep queue message (it's the main pinned message)
+    await delete_messages_later(message.bot, chat_id, [message.message_id], delay=2)
     try:
         await bot.pin_chat_message(chat_id, sent.message_id, disable_notification=True)
     except Exception:
@@ -257,15 +266,18 @@ async def cmd_switch(message: Message, bot: Bot):
     from_user_id = message.from_user.id
     queues = await queue_service.get_active_queues(chat_id)
     if not queues:
-        await message.answer("В этом чате нет активных очередей.")
+        bot_msg = await message.answer("В этом чате нет активных очередей.")
+        await delete_command_and_response(message, bot_msg, delay=10)
         return
     args = message.text.split(maxsplit=1)
     if len(args) < 2 or not args[1].strip():
-        await message.answer("Использование: /switch @username")
+        bot_msg = await message.answer("Использование: /switch @username")
+        await delete_command_and_response(message, bot_msg, delay=10)
         return
     target_username = args[1].strip().lstrip("@")
     if not target_username:
-        await message.answer("Использование: /switch @username")
+        bot_msg = await message.answer("Использование: /switch @username")
+        await delete_command_and_response(message, bot_msg, delay=10)
         return
     queue = queues[0]
     members = await queue_service.get_members(queue.id)
@@ -275,9 +287,10 @@ async def cmd_switch(message: Message, bot: Bot):
             target_member = m
             break
     if not target_member:
-        await message.answer(
+        bot_msg = await message.answer(
             f"Пользователь @{target_username} не найден в очереди «{queue.title}»."
         )
+        await delete_command_and_response(message, bot_msg, delay=10)
         return
     success, msg, swap = await swap_service.create_swap_request(
         queue.id,
@@ -285,19 +298,23 @@ async def cmd_switch(message: Message, bot: Bot):
         target_member.user_id,
     )
     if not success or not swap:
-        await message.answer(msg)
+        bot_msg = await message.answer(msg)
+        await delete_command_and_response(message, bot_msg, delay=10)
         return
     from_user_name = (
         message.from_user.first_name or message.from_user.username or str(from_user_id)
     )
     target_name = target_member.first_name or f"@{target_username}"
     swap_kb = swap_confirmation_keyboard(swap.id, queue.id)
-    await message.answer(
+    bot_msg = await message.answer(
         f"🔄 <b>{from_user_name}</b> хочет поменяться с <b>{target_name}</b> местами.\n"
         f"Запрос действителен 5 минут.",
         reply_markup=swap_kb,
         parse_mode=ParseMode.HTML,
     )
+    # Delete user command immediately, swap request after 5 min (matches expiry)
+    await delete_messages_later(message.bot, chat_id, [message.message_id], delay=2)
+    await delete_messages_later(message.bot, chat_id, [bot_msg.message_id], delay=PANEL_INACTIVITY_TIMEOUT)
 
 
 # --- Queue close ---
@@ -319,7 +336,8 @@ async def cb_queue_close(callback: CallbackQuery):
 async def cmd_queues(message: Message):
     queues = await queue_service.get_active_queues(message.chat.id)
     if not queues:
-        await message.answer("В этом чате нет активных очередей.")
+        bot_msg = await message.answer("В этом чате нет активных очередей.")
+        await delete_command_and_response(message, bot_msg, delay=10)
         return
 
     lines = ["<b>Очереди:</b>", ""]
@@ -330,7 +348,11 @@ async def cmd_queues(message: Message):
     text = "\n".join(lines)
 
     kb = queue_list_keyboard(queues)
-    await message.answer(text, reply_markup=kb, parse_mode=ParseMode.HTML)
+    bot_msg = await message.answer(text, reply_markup=kb, parse_mode=ParseMode.HTML)
+    chat_id = message.chat.id
+    # Delete user command quickly, panel after inactivity
+    await delete_messages_later(message.bot, chat_id, [message.message_id], delay=2)
+    await delete_messages_later(message.bot, chat_id, [bot_msg.message_id], PANEL_INACTIVITY_TIMEOUT)
 
 
 @queue_router.callback_query(QueueListCallback.filter(F.action == "view"))

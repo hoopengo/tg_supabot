@@ -12,6 +12,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from bot.config import config
 from bot.handlers import routers_list
+from bot.middlewares.command_toggle import CommandToggleMiddleware
 from bot.middlewares.flood_control import FloodControlMiddleware
 from bot.middlewares.toxicity_middleware import ToxicityMessageMiddleware
 from bot.middlewares.user_exist import UserExistCallbackMiddleware
@@ -34,7 +35,8 @@ COMMANDS = [
     BotCommand(command="add_admin", description="Добавить админа"),
     BotCommand(command="remove_admin", description="Удалить админа"),
     BotCommand(command="casino", description="Казино Писюка"),
-    BotCommand(command="casino_top", description="Топ казино"),
+    # BotCommand(command="casino_top", description="Топ казино"),
+    BotCommand(command="settings", description="Настройки команд"),
 ]
 
 
@@ -101,6 +103,7 @@ async def main():
 
     # middlewares register
     dp.message.outer_middleware(FloodControlMiddleware())
+    dp.message.outer_middleware(CommandToggleMiddleware())
     dp.message.outer_middleware(UserExistCallbackMiddleware())
     dp.message.outer_middleware(ToxicityMessageMiddleware())
     dp.message.middleware(ChatActionMiddleware())

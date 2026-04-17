@@ -3,6 +3,7 @@ from aiogram.enums import ParseMode
 from aiogram.filters import Command
 from aiogram.types import Message
 from bot.db.methods import get_members
+from bot.services.auto_delete import delete_command_and_response
 
 mentions_router = Router()
 
@@ -25,5 +26,8 @@ async def _command_mention_all_handler(message: Message):
 
     mention = ", ".join(mention_list)
     if mention == "":
-        return await message.reply("В системе нет зарегистрированых пользователей.")
-    await message.reply(mention, parse_mode=ParseMode.HTML)
+        bot_msg = await message.reply("В системе нет зарегистрированых пользователей.")
+        await delete_command_and_response(message, bot_msg)
+        return
+    bot_msg = await message.reply(mention, parse_mode=ParseMode.HTML)
+    await delete_command_and_response(message, bot_msg, 60)

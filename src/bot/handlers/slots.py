@@ -22,6 +22,11 @@ from bot.keyboards.slots_kb import (
     build_number_keyboard,
 )
 from bot.redis import message_cache
+from bot.services.auto_delete import (
+    delete_messages_later,
+    schedule_delete_task,
+    RESULT_DELETE_DELAY,
+)
 
 router = Router()
 
@@ -320,6 +325,8 @@ async def finish_roulette(bot, chat_id: int, message_id: int) -> None:
             reply_markup=build_cancel_keyboard(),
             parse_mode=ParseMode.HTML,
         )
+        # Schedule auto-delete of the result after RESULT_DELETE_DELAY
+        schedule_delete_task(bot, chat_id, [message_id], RESULT_DELETE_DELAY)
     except Exception:
         pass
 
@@ -338,12 +345,20 @@ async def slots_command(message: Message):
             await clear_bets(chat_id)
             await clear_last_bet(chat_id)
         else:
-            await message.answer(
+            bot_msg = await message.answer(
                 "Рулетка уже крутится! Используй /slots force для принудительного перезапуска.",
                 parse_mode=ParseMode.HTML,
             )
+            await delete_messages_later(
+                message.bot, chat_id, [message.message_id, bot_msg.message_id], 10
+            )
             return
 
+    # Delete the user's /slots command message
+    try:
+        await message.delete()
+    except Exception:
+        pass
     await start_roulette_game(message)
 
 

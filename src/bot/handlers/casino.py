@@ -8,6 +8,7 @@ from sqlalchemy import select
 
 from bot.db import UserModel, session
 from bot.redis import message_cache
+from bot.services.auto_delete import delete_command_and_response
 
 router = Router()
 
@@ -115,7 +116,8 @@ async def casino_top(message: Message):
         ).all()
 
     if not result:
-        await message.answer("Нет игроков в казино", parse_mode=ParseMode.HTML)
+        bot_msg = await message.answer("Нет игроков в казино", parse_mode=ParseMode.HTML)
+        await delete_command_and_response(message, bot_msg)
         return
 
     lines = ["<b>🎰 Топ казино</b>\n"]
@@ -124,7 +126,8 @@ async def casino_top(message: Message):
             f"{i}. {user.first_name or user.username or user.user_id} — {user.penis_size} см"
         )
 
-    await message.answer("\n".join(lines), parse_mode=ParseMode.HTML)
+    bot_msg = await message.answer("\n".join(lines), parse_mode=ParseMode.HTML)
+    await delete_command_and_response(message, bot_msg)
 
 
 @router.message(Command("casino", ignore_case=True), F.chat.type != "private")
@@ -133,14 +136,15 @@ async def play_casino(message: Message):
     user_id = message.from_user.id
 
     if await check_cooldown(user_id, chat_id):
-        await message.answer(
+        bot_msg = await message.answer(
             "Подожди немного, куколд еще не вышел", parse_mode=ParseMode.HTML
         )
+        await delete_command_and_response(message, bot_msg, 10)
         return
 
     parts = message.text.split()
     if len(parts) < 2:
-        await message.answer(
+        bot_msg = await message.answer(
             "<b>🎰 Казино Писюка</b>\n\n"
             "Ставка: 1-50 см\n"
             f"Макс. выигрыш: {MAX_WIN_MULTIPLIER}x от ставки\n"
@@ -150,6 +154,7 @@ async def play_casino(message: Message):
             "<code>/casino top</code> - топ игроков",
             parse_mode=ParseMode.HTML,
         )
+        await delete_command_and_response(message, bot_msg)
         return
 
     if parts[1] == "top":
@@ -159,34 +164,39 @@ async def play_casino(message: Message):
     try:
         bet = int(parts[1])
     except ValueError:
-        await message.answer("Ставка должна быть числом", parse_mode=ParseMode.HTML)
+        bot_msg = await message.answer("Ставка должна быть числом", parse_mode=ParseMode.HTML)
+        await delete_command_and_response(message, bot_msg, 10)
         return
 
     if bet < MIN_BET:
-        await message.answer(
+        bot_msg = await message.answer(
             f"Минимальная ставка: {MIN_BET} см", parse_mode=ParseMode.HTML
         )
+        await delete_command_and_response(message, bot_msg, 10)
         return
 
     if bet > MAX_BET:
-        await message.answer(
+        bot_msg = await message.answer(
             f"Максимальная ставка: {MAX_BET} см", parse_mode=ParseMode.HTML
         )
+        await delete_command_and_response(message, bot_msg, 10)
         return
 
     current_penis = await get_user_penis(user_id, chat_id)
     if current_penis < bet:
-        await message.answer(
+        bot_msg = await message.answer(
             f"У тебя недостаточно см. У тебя: {current_penis} см",
             parse_mode=ParseMode.HTML,
         )
+        await delete_command_and_response(message, bot_msg, 10)
         return
 
     if current_penis < MIN_BET:
-        await message.answer(
+        bot_msg = await message.answer(
             f"У тебя слишком мало см для игры. Минимум: {MIN_BALANCE} см",
             parse_mode=ParseMode.HTML,
         )
+        await delete_command_and_response(message, bot_msg, 10)
         return
 
     await set_cooldown(user_id, chat_id)
@@ -236,4 +246,5 @@ async def play_casino(message: Message):
     new_balance = await get_user_penis(user_id, chat_id)
     result_text += f"\n💰 Баланс: {new_balance} см"
 
-    await message.answer(result_text, parse_mode=ParseMode.HTML)
+    bot_msg = await message.answer(result_text, parse_mode=ParseMode.HTML)
+    await delete_command_and_response(message, bot_msg)

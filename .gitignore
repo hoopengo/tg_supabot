@@ -85,3 +85,4 @@ data
 .vscode/
 .trunk/
 .kilo/
+.ruff_cache/

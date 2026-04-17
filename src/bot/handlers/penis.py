@@ -18,6 +18,7 @@ from bot.db.methods import (
     last_penis_update_now,
     update_dick_size,
 )
+from bot.services.auto_delete import delete_command_and_response
 
 penis_router = Router()
 penis_router.message.filter(F.chat.type != "private")
@@ -97,9 +98,10 @@ async def _command_top_dick_handler(message: Message):
             f"<b>{v}|{member.user.full_name} — {user.penis_size}</b>"
         )
 
-    await message.answer(
+    bot_msg = await message.answer(
         "Топ 10 игроков\n" + "\n".join(users_statistic), parse_mode=ParseMode.HTML
     )
+    await delete_command_and_response(message, bot_msg)
 
 
 @penis_router.message(Command("stats", ignore_case=True), F.chat.type != "private")
@@ -116,9 +118,10 @@ async def _command_stats_handler(message: Message):
         )
 
     with stats_to_image(users_statistic) as image_bytes:
-        await message.answer_photo(
+        bot_msg = await message.answer_photo(
             BufferedInputFile(image_bytes, "stats-diagram-image")
         )
+    await delete_command_and_response(message, bot_msg)
 
 
 @penis_router.message(Command("dick", ignore_case=True), F.chat.type != "private")
@@ -131,19 +134,21 @@ async def _command_dick_handler(message: Message):
     if seconds_after >= 0:
         next_attempt = timedelta(seconds=seconds_after)
 
-        return await message.answer(
+        bot_msg = await message.answer(
             f"""{message.from_user.mention_html()}, ты уже играл.
 Сейчас он равен {user.penis_size} см.
 Ты занимаешь {user.rank} место в топе.
 Следующая попытка через {next_attempt}""",
             parse_mode=ParseMode.HTML,
         )
+        await delete_command_and_response(message, bot_msg)
+        return
     else:
         dick_append = random.randint(3, 15)
         await update_dick_size(message.from_user.id, message.chat.id, dick_append)
         user = await get_user(message.from_user.id, message.chat.id)
 
-        await message.answer(
+        bot_msg = await message.answer(
             f"""{message.from_user.mention_html()}, твой писюн вырос на {dick_append} см.
 Теперь он равен {user.penis_size} см.
 Ты занимаешь {user.rank} место в топе
@@ -151,3 +156,4 @@ async def _command_dick_handler(message: Message):
             parse_mode=ParseMode.HTML,
         )
         await last_penis_update_now(message.from_user.id, message.chat.id)
+        await delete_command_and_response(message, bot_msg)

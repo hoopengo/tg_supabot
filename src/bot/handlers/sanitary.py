@@ -3,6 +3,7 @@ from aiogram.enums import ParseMode
 from aiogram.filters import Command, CommandObject
 from aiogram.types import Message
 from bot.db.methods import get_next_sanitaries
+from bot.services.auto_delete import delete_command_and_response
 
 sanitary_router = Router()
 
@@ -16,7 +17,8 @@ async def _command_sanitary_handler(message: Message, command: CommandObject):
         try:
             count = int(command.args.split(" ")[0])
         except ValueError:
-            await message.reply("Аргумент должен быть числом")
+            bot_msg = await message.reply("Аргумент должен быть числом")
+            await delete_command_and_response(message, bot_msg, 10)
             return
         count = abs(count)
         if count == 0:
@@ -27,13 +29,16 @@ async def _command_sanitary_handler(message: Message, command: CommandObject):
     else:
         sanitaries = await get_next_sanitaries(message.chat.id)
     if len(sanitaries) == 0:
-        return await message.reply("Не найдено кандидатов")
+        bot_msg = await message.reply("Не найдено кандидатов")
+        await delete_command_and_response(message, bot_msg)
+        return
 
     choisen_users = []
     for sanitary in sanitaries:
         member = await message.chat.get_member(sanitary.user_id)
         choisen_users.append(member.user.mention_html())
 
-    await message.answer(
+    bot_msg = await message.answer(
         "Дежурные: " + ", ".join(choisen_users), parse_mode=ParseMode.HTML
     )
+    await delete_command_and_response(message, bot_msg)

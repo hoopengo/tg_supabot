@@ -10,7 +10,12 @@ from aiogram.types import CallbackQuery, Message
 from sqlalchemy import select
 
 from bot.db import UserModel, session
-from bot.handlers.casino import get_user_penis, update_penis_safe
+from bot.handlers.casino import (
+    add_winnings,
+    deduct_bet,
+    get_user_penis,
+    refund_bet,
+)
 from bot.keyboards.slots_kb import (
     ALL_IN_MARKER,
     BLACK_NUMBERS,
@@ -85,9 +90,16 @@ async def clear_roulette_active(chat_id: int) -> None:
     await message_cache.delete(key)
 
 
-async def save_bet(
+async def place_bet(
     chat_id: int, user_id: int, bet_type: str, number: int, amount: int
-) -> bool:
+) -> tuple[bool, int, str]:
+    """Atomically deduct balance and save bet to Redis.
+
+    Handles new bets and bet updates (refunds old amount diff).
+    amount can be ALL_IN_MARKER for all-in.
+
+    Returns (success, actual_amount, error_message).
+    """
     key = get_bets_key(chat_id)
 
     # Wait for lock with retry
@@ -96,19 +108,47 @@ async def save_bet(
             break
         await asyncio.sleep(0.05)
     else:
-        return False
+        return False, 0, "Сервер занят, попробуйте снова"
 
     try:
         existing = await message_cache.get(key)
         bets = json.loads(existing) if existing else []
 
-        # Check if user already has this bet type (for number bet, check number too)
+        # Find existing bet for this user/type
+        old_amount = 0
+        for bet in bets:
+            if bet["user_id"] == user_id and bet["bet_type"] == bet_type:
+                if bet_type != "number" or bet.get("number") == number:
+                    old_amount = bet["amount"]
+                    break
+
+        # Resolve all-in: available = current balance + old bet (would be refunded)
+        if amount == ALL_IN_MARKER:
+            current = await get_user_penis(user_id, chat_id)
+            available = current + old_amount
+            amount = min(available, MAX_BET)
+            if amount < MIN_BET:
+                return False, 0, "Недостаточно см для ставки!"
+
+        # Deduct or refund the difference
+        diff = amount - old_amount
+        if diff > 0:
+            success, _ = await deduct_bet(user_id, chat_id, diff)
+            if not success:
+                return False, 0, "Недостаточно см!"
+        elif diff < 0:
+            await refund_bet(user_id, chat_id, -diff)
+
+        # Update or add bet in Redis
+        updated = False
         for bet in bets:
             if bet["user_id"] == user_id and bet["bet_type"] == bet_type:
                 if bet_type != "number" or bet.get("number") == number:
                     bet["amount"] = amount
+                    updated = True
                     break
-        else:
+
+        if not updated:
             bets.append(
                 {
                     "user_id": user_id,
@@ -124,7 +164,7 @@ async def save_bet(
         last_bet_key = get_last_bet_key(chat_id)
         await message_cache.setex(last_bet_key, SPIN_DURATION + 60, str(time.time()))
 
-        return True
+        return True, amount, ""
     finally:
         await release_bets_lock(chat_id)
 
@@ -238,13 +278,17 @@ async def start_roulette_game(message: Message) -> None:
     msg = await message.answer(
         "🎰 <b>Рулетка</b>\n\n"
         "Ставки: 1-100 см\n"
-        "Время на ставки: 30 сек\n\n"
+        f"Время на ставки: {SPIN_DURATION} сек\n\n"
         "Выберите тип ставки:",
         reply_markup=build_bet_type_keyboard(),
         parse_mode=ParseMode.HTML,
     )
 
     await set_roulette_active(chat_id, msg.message_id)
+    # Refund any orphaned bets from a previous stale session before clearing
+    stale_bets = await get_bets(chat_id)
+    for bet in stale_bets:
+        await refund_bet(bet["user_id"], chat_id, bet["amount"])
     await clear_bets(chat_id)
     await clear_last_bet(chat_id)
 
@@ -299,14 +343,12 @@ async def finish_roulette(bot, chat_id: int, message_id: int) -> None:
         )
         user_name = user_names.get(bet["user_id"], f"User-{bet['user_id']}")
         if payout > 0:
-            _, actual_win, _ = await update_penis_safe(
-                bet["user_id"], chat_id, payout, bet["amount"]
-            )
-            winners.append(f"• {user_name}: +{actual_win} см")
+            # Bet was already deducted at placement; add full payout
+            await add_winnings(bet["user_id"], chat_id, payout)
+            profit = payout - bet["amount"]
+            winners.append(f"• {user_name}: +{profit} см")
         else:
-            await update_penis_safe(
-                bet["user_id"], chat_id, -bet["amount"], bet["amount"]
-            )
+            # Bet was already deducted at placement; nothing to do
             losers.append(f"• {user_name}: -{bet['amount']} см")
 
     result_text = f"🎰 <b>Рулетка</b>\n\nВыпало: {winning_number} ({winner_type})\n\n"
@@ -342,6 +384,10 @@ async def slots_command(message: Message):
 
     if await check_roulette_active(chat_id):
         if force:
+            # Refund all existing bets before clearing
+            existing_bets = await get_bets(chat_id)
+            for bet in existing_bets:
+                await refund_bet(bet["user_id"], chat_id, bet["amount"])
             await clear_roulette_active(chat_id)
             await clear_bets(chat_id)
             await clear_last_bet(chat_id)
@@ -432,7 +478,7 @@ async def slots_callback(query: CallbackQuery, callback_data: SlotsCallback):
             await query.message.edit_text(
                 "🎰 <b>Рулетка</b>\n\n"
                 "Ставки: 1-100 см\n"
-                "Время на ставки: 30 сек\n\n"
+                f"Время на ставки: {SPIN_DURATION} сек\n\n"
                 "Выберите тип ставки:",
                 reply_markup=build_bet_type_keyboard(),
                 parse_mode=ParseMode.HTML,
@@ -446,31 +492,23 @@ async def slots_callback(query: CallbackQuery, callback_data: SlotsCallback):
         number = callback_data.number
         amount = callback_data.amount
 
-        current_penis = await get_user_penis(user_id, chat_id)
-
-        # Resolve all-in: bet the entire balance (capped at MAX_BET)
-        if amount == ALL_IN_MARKER:
-            amount = min(current_penis, MAX_BET)
-            if amount < MIN_BET:
-                await query.answer(
-                    f"Недостаточно см для ставки! Баланс: {current_penis} см",
-                    show_alert=True,
-                )
-                return
-
-        if amount < MIN_BET or amount > MAX_BET:
+        # Validate amount bounds (skip for all-in, resolved inside place_bet)
+        if amount != ALL_IN_MARKER and (amount < MIN_BET or amount > MAX_BET):
             await query.answer(
                 f"Ставка должна быть {MIN_BET}-{MAX_BET} см", show_alert=True
             )
             return
 
-        if current_penis < amount:
+        # Atomically deduct balance and save bet
+        success, actual_amount, error = await place_bet(
+            chat_id, user_id, bet_type, number, amount
+        )
+        if not success:
+            current_penis = await get_user_penis(user_id, chat_id)
             await query.answer(
-                f"Недостаточно см! Баланс: {current_penis} см", show_alert=True
+                f"{error} Баланс: {current_penis} см", show_alert=True
             )
             return
-
-        await save_bet(chat_id, user_id, bet_type, number, amount)
 
         bet_type_names = {
             "red": "🔴 Красное",
@@ -484,7 +522,7 @@ async def slots_callback(query: CallbackQuery, callback_data: SlotsCallback):
         }
         bet_desc = bet_type_names.get(bet_type, bet_type)
         await query.answer(
-            f"Ставка {amount} см на {bet_desc} принята!", show_alert=True
+            f"Ставка {actual_amount} см на {bet_desc} принята!", show_alert=True
         )
 
         bets = await get_bets(chat_id)

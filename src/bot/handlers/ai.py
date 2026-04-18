@@ -1,7 +1,7 @@
 """AI command handler using OpenAI-compatible API via logfare.ai."""
 
+import json
 import logging
-import re
 
 from aiogram import F, Router
 from aiogram.enums import ChatAction, ParseMode
@@ -30,9 +30,6 @@ COOLDOWN_ADMIN = 5
 
 REDIS_KEY_PREFIX = "ai_cooldown"
 
-# Regex to find [REF:123456] tags in LLM output
-_REF_PATTERN = re.compile(r"\[REF:(\d+)\]")
-
 _client = AsyncOpenAI(
     base_url=LOGFARE_BASE_URL,
     api_key="not-needed",
@@ -41,14 +38,37 @@ _client = AsyncOpenAI(
 SYSTEM_PROMPT = (
     "Ты — полезный ассистент группового чата в Telegram. "
     "Тебе передаётся история последних сообщений чата и вопрос пользователя. "
-    "Отвечай на русском языке, кратко и по делу. "
-    "Каждое сообщение в истории помечено идентификатором #msg_<id>. "
-    "Если ты ссылаешься на конкретное сообщение из истории — ОБЯЗАТЕЛЬНО укажи его тег "
-    "в формате [REF:<id>] (например [REF:12345]). Можно указать несколько тегов. "
-    "Бот автоматически сделает reply на первое указанное сообщение, чтобы пользователь "
-    "мог перейти к нему в чате. "
+    "Отвечай на русском языке, кратко и по делу.\n\n"
+    "Каждое сообщение в истории помечено идентификатором #msg_<id>.\n"
+    "Если ты ссылаешься на конкретное сообщение из истории — вызови функцию "
+    "reply_to с id этого сообщения. Бот автоматически сделает reply, чтобы "
+    "пользователь мог перейти к нему в чате.\n"
+    "НЕ вставляй id сообщений в текст ответа. Используй ТОЛЬКО функцию reply_to.\n"
     "Если ответа нет в истории — честно скажи, что не нашёл."
 )
+
+# OpenAI function / tool definition for reply_to
+REPLY_TO_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "reply_to",
+        "description": (
+            "Сделать reply бота на конкретное сообщение из истории чата. "
+            "Вызови эту функцию, если хочешь указать пользователю на "
+            "конкретное сообщение."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "message_id": {
+                    "type": "integer",
+                    "description": "ID сообщения из истории (число из #msg_<id>)",
+                },
+            },
+            "required": ["message_id"],
+        },
+    },
+}
 
 
 # --- Cooldown helpers ---
@@ -83,27 +103,18 @@ async def _get_cooldown_seconds(user_id: int, chat_id: int) -> int:
     return COOLDOWN_USER
 
 
-def _parse_refs(text: str) -> tuple[str, list[int]]:
-    """Extract [REF:id] tags from LLM response.
-
-    Returns cleaned text and list of referenced message IDs.
-    """
-    refs: list[int] = []
-    for match in _REF_PATTERN.finditer(text):
-        try:
-            refs.append(int(match.group(1)))
-        except ValueError:
-            continue
-    # Remove the [REF:...] tags from the visible text
-    clean = _REF_PATTERN.sub("", text)
-    # Collapse multiple spaces left after removal
-    clean = re.sub(r" {2,}", " ", clean)
-    # Remove spaces before punctuation left after tag removal (e.g. " ." -> ".")
-    clean = re.sub(r"\s+([.,;:!?])", r"\1", clean)
-    # Remove orphaned punctuation-only remnants (e.g. standalone " , , .")
-    clean = re.sub(r"(?:^[\s.,;:!?]+$)", "", clean, flags=re.MULTILINE)
-    clean = clean.strip()
-    return clean, refs
+def _extract_tool_reply_id(response_message) -> int | None:
+    """Extract message_id from reply_to tool call if present."""
+    if not response_message.tool_calls:
+        return None
+    for tool_call in response_message.tool_calls:
+        if tool_call.function.name == "reply_to":
+            try:
+                args = json.loads(tool_call.function.arguments)
+                return int(args["message_id"])
+            except (json.JSONDecodeError, KeyError, ValueError, TypeError):
+                continue
+    return None
 
 
 # --- Handler ---
@@ -169,8 +180,12 @@ async def ai_command(message: Message):
         response = await _client.chat.completions.create(
             model=LOGFARE_MODEL,
             messages=llm_messages,
+            tools=[REPLY_TO_TOOL],
+            tool_choice="auto",
         )
-        answer = response.choices[0].message.content
+        resp_message = response.choices[0].message
+        answer = resp_message.content or ""
+        reply_to_msg_id = _extract_tool_reply_id(resp_message)
     except Exception as e:
         logger.error(f"AI request failed: {e}", exc_info=True)
         bot_msg = await message.answer(
@@ -183,23 +198,17 @@ async def ai_command(message: Message):
     if not answer:
         answer = "AI не вернул ответ."
 
-    # Parse [REF:...] tags from LLM response
-    clean_answer, ref_ids = _parse_refs(answer)
-
-    if not clean_answer:
-        clean_answer = answer
-
-    # If LLM referenced a specific message, reply to the first one
-    reply_to_msg_id = ref_ids[0] if ref_ids else message.message_id
+    # Decide what to reply to: referenced message, or the user's /ask command
+    target_msg_id = reply_to_msg_id if reply_to_msg_id else message.message_id
 
     try:
         await message.bot.send_message(
             chat_id=chat_id,
-            text=clean_answer,
-            reply_to_message_id=reply_to_msg_id,
+            text=answer,
+            reply_to_message_id=target_msg_id,
             parse_mode=None,
         )
     except Exception:
         # Fallback: if reply_to the referenced msg fails (e.g. deleted),
         # just reply to the user's command message
-        await message.reply(clean_answer, parse_mode=None)
+        await message.reply(answer, parse_mode=None)

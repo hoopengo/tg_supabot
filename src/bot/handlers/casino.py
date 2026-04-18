@@ -69,9 +69,63 @@ async def is_casino_lucky(user_id: int, chat_id: int) -> bool:
         return False
 
 
+async def deduct_bet(user_id: int, chat_id: int, amount: int) -> tuple[bool, int]:
+    """Atomically deduct a bet from the user's balance.
+
+    Returns (success, actually_deducted).
+    Fails if the user doesn't have enough balance.
+    """
+    async with session() as s:
+        result = await s.scalar(
+            select(UserModel).where(
+                UserModel.user_id == user_id, UserModel.chat_id == chat_id
+            )
+        )
+        if not result:
+            return False, 0
+
+        if result.penis_size < amount:
+            return False, 0
+
+        result.penis_size -= amount
+        await s.commit()
+        return True, amount
+
+
+async def refund_bet(user_id: int, chat_id: int, amount: int) -> None:
+    """Return a previously deducted bet back to the user's balance."""
+    async with session() as s:
+        result = await s.scalar(
+            select(UserModel).where(
+                UserModel.user_id == user_id, UserModel.chat_id == chat_id
+            )
+        )
+        if result:
+            result.penis_size += amount
+
+
+async def add_winnings(user_id: int, chat_id: int, amount: int) -> int:
+    """Add net winnings to user's balance. Returns actual amount added."""
+    async with session() as s:
+        result = await s.scalar(
+            select(UserModel).where(
+                UserModel.user_id == user_id, UserModel.chat_id == chat_id
+            )
+        )
+        if not result:
+            return 0
+        result.penis_size += amount
+        return amount
+
+
 async def update_penis_safe(
     user_id: int, chat_id: int, change: int, bet: int = 0
 ) -> tuple[bool, int, str]:
+    """Apply a casino win/loss to the user's balance.
+
+    For LOSS (change < 0): deducts from balance, clamped to MIN_BALANCE.
+    For WIN (change > 0): adds to balance, capped at bet * MAX_WIN_MULTIPLIER.
+    """
     async with session() as s:
         result = await s.scalar(
             select(UserModel).where(
@@ -116,14 +170,17 @@ async def casino_top(message: Message):
         ).all()
 
     if not result:
-        bot_msg = await message.answer("Нет игроков в казино", parse_mode=ParseMode.HTML)
+        bot_msg = await message.answer(
+            "Нет игроков в казино", parse_mode=ParseMode.HTML
+        )
         await delete_command_and_response(message, bot_msg)
         return
 
     lines = ["<b>🎰 Топ казино</b>\n"]
     for i, user in enumerate(result, 1):
         lines.append(
-            f"{i}. {user.first_name or user.username or user.user_id} — {user.penis_size} см"
+            f"{i}. {user.first_name or user.username or user.user_id}"
+            f" — {user.penis_size} см"
         )
 
     bot_msg = await message.answer("\n".join(lines), parse_mode=ParseMode.HTML)
@@ -137,7 +194,8 @@ async def play_casino(message: Message):
 
     if await check_cooldown(user_id, chat_id):
         bot_msg = await message.answer(
-            "Подожди немного, куколд еще не вышел", parse_mode=ParseMode.HTML
+            "Подожди немного, куколд еще не вышел",
+            parse_mode=ParseMode.HTML,
         )
         await delete_command_and_response(message, bot_msg, 10)
         return
@@ -164,7 +222,9 @@ async def play_casino(message: Message):
     try:
         bet = int(parts[1])
     except ValueError:
-        bot_msg = await message.answer("Ставка должна быть числом", parse_mode=ParseMode.HTML)
+        bot_msg = await message.answer(
+            "Ставка должна быть числом", parse_mode=ParseMode.HTML
+        )
         await delete_command_and_response(message, bot_msg, 10)
         return
 
@@ -182,18 +242,12 @@ async def play_casino(message: Message):
         await delete_command_and_response(message, bot_msg, 10)
         return
 
-    current_penis = await get_user_penis(user_id, chat_id)
-    if current_penis < bet:
+    # Atomically deduct the bet
+    success, _ = await deduct_bet(user_id, chat_id, bet)
+    if not success:
+        current_penis = await get_user_penis(user_id, chat_id)
         bot_msg = await message.answer(
             f"У тебя недостаточно см. У тебя: {current_penis} см",
-            parse_mode=ParseMode.HTML,
-        )
-        await delete_command_and_response(message, bot_msg, 10)
-        return
-
-    if current_penis < MIN_BET:
-        bot_msg = await message.answer(
-            f"У тебя слишком мало см для игры. Минимум: {MIN_BALANCE} см",
             parse_mode=ParseMode.HTML,
         )
         await delete_command_and_response(message, bot_msg, 10)
@@ -219,28 +273,53 @@ async def play_casino(message: Message):
         # 5% шанс на x5
         if random.random() < 0.05:
             multiplier = 5
-        win = bet * multiplier
-        _, actual_win, msg = await update_penis_safe(user_id, chat_id, win, bet)
+        # Bet was already deducted; calculate payout and net profit
+        gross_win = bet * multiplier
+        payout = min(gross_win, bet * MAX_WIN_MULTIPLIER)
+        await add_winnings(user_id, chat_id, payout)
+        profit = payout - bet
         if multiplier == 5:
-            result_text = f"🎉 СУПЕР ДЖЕКПОТ! {slots[0]}{slots[0]}{slots[0]}\n{msg}"
+            result_text = (
+                f"🎉 СУПЕР ДЖЕКПОТ! {slots[0]}{slots[0]}{slots[0]}\n"
+                f"Профит: +{profit} см"
+            )
         else:
-            result_text = f"🎉 Джекпот! {slots[0]}{slots[0]}{slots[0]}\n{msg}"
+            result_text = (
+                f"🎉 Джекпот! {slots[0]}{slots[0]}{slots[0]}\n"
+                f"Профит: +{profit} см"
+            )
     elif len_unique == 2:
         # Find the symbol that appears twice
+        paired_symbol = None
         for s in unique:
             if slots.count(s) == 2:
-                symbol = s
+                paired_symbol = s
                 break
-        if symbol in SYMBOL_PAYOUTS:
-            multiplier = SYMBOL_PAYOUTS[symbol]
-            win = bet * multiplier
-            _, actual_win, msg = await update_penis_safe(user_id, chat_id, win, bet)
-            result_text = f"🎯 Два совпадения! {symbol}{symbol}\n{msg}"
+        if paired_symbol is not None:
+            multiplier = SYMBOL_PAYOUTS[paired_symbol]
+            gross_win = bet * multiplier
+            payout = min(gross_win, bet * MAX_WIN_MULTIPLIER)
+            await add_winnings(user_id, chat_id, payout)
+            profit = payout - bet
+            if profit > 0:
+                result_text = (
+                    f"🎯 Два совпадения! {paired_symbol}{paired_symbol}\n"
+                    f"Профит: +{profit} см"
+                )
+            else:
+                # multiplier=1: payout == bet, net change 0
+                result_text = (
+                    f"🎯 Два совпадения! {paired_symbol}{paired_symbol}\n"
+                    f"Ставка возвращена"
+                )
         else:
-            await update_penis_safe(user_id, chat_id, -bet, bet)
-            result_text = f"😢 Два совпадения, но не выигрышные\nПроиграл {bet} см"
+            # Bet already deducted, nothing to return
+            result_text = (
+                f"😢 Нет совпадений\n"
+                f"Проиграл {bet} см"
+            )
     else:
-        await update_penis_safe(user_id, chat_id, -bet, bet)
+        # Bet already deducted, nothing to return
         result_text = f"😢 {slots[0]}{slots[1]}{slots[2]}\nПроиграл {bet} см"
 
     new_balance = await get_user_penis(user_id, chat_id)

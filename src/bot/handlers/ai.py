@@ -197,6 +197,8 @@ async def ai_command(message: Message):
 
     if not answer:
         answer = "AI не вернул ответ."
+        if reply_to_msg_id is not None:
+            answer = "."
 
     # Decide what to reply to: referenced message, or the user's /ask command
     target_msg_id = reply_to_msg_id if reply_to_msg_id else message.message_id

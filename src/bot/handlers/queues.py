@@ -48,7 +48,8 @@ async def _update_queue_message(
     try:
         await message.edit_text(text, reply_markup=kb, parse_mode=ParseMode.HTML)
     except Exception as e:
-        logger.warning(f"Failed to edit queue message: {e}")
+        if "message is not modified" not in str(e):
+            logger.warning(f"Failed to edit queue message: {e}")
 
 
 async def _update_main_queue_message(bot: Bot, queue_id: int, owner: int = 0) -> None:
@@ -69,7 +70,8 @@ async def _update_main_queue_message(bot: Bot, queue_id: int, owner: int = 0) ->
             parse_mode=ParseMode.HTML,
         )
     except Exception as e:
-        logger.warning(f"Failed to edit main queue message: {e}")
+        if "message is not modified" not in str(e):
+            logger.warning(f"Failed to edit main queue message: {e}")
 
 
 # --- /create_queue command ---

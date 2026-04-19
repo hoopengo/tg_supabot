@@ -224,14 +224,27 @@ async def ai_command(message: Message):
     # Decide what to reply to: referenced message, or the user's /ask command
     target_msg_id = reply_to_msg_id if reply_to_msg_id else message.message_id
 
+    # Always send in the same topic/thread where /ask was used
+    thread_id = message.message_thread_id
+
     try:
         await message.bot.send_message(
             chat_id=chat_id,
             text=answer,
             reply_to_message_id=target_msg_id,
+            message_thread_id=thread_id,
             parse_mode=None,
         )
     except Exception:
         # Fallback: if reply_to the referenced msg fails (e.g. deleted),
         # just reply to the user's command message
-        await message.reply(answer, parse_mode=None)
+        try:
+            await message.bot.send_message(
+                chat_id=chat_id,
+                text=answer,
+                reply_to_message_id=message.message_id,
+                message_thread_id=thread_id,
+                parse_mode=None,
+            )
+        except Exception:
+            await message.reply(answer, parse_mode=None)

@@ -16,6 +16,9 @@ async def _store_message(message: Message) -> None:
     """Fire-and-forget helper to store a message without blocking the pipeline."""
     try:
         if message.chat.type in ("group", "supergroup") and message.text:
+            # Skip /ask commands so they don't pollute AI context
+            if message.text.startswith("/ask"):
+                return
             await store_chat_message(message.chat.id, message)
     except Exception:
         logger.debug("Failed to store chat message", exc_info=True)

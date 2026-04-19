@@ -179,6 +179,46 @@ class SwapRequestModel(Base):
         return f"<SwapRequest {self.id} queue={self.queue_id} {self.from_user_id}<->{self.to_user_id}>"
 
 
+class QueueGroupModel(Base):
+    __tablename__ = "queue_groups"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    chat_id = Column(BigInteger, nullable=False, index=True)
+    message_id = Column(BigInteger, nullable=True)
+    title = Column(String(500), nullable=True)
+    created_by = Column(BigInteger, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    def __repr__(self):
+        return f"<QueueGroup {self.id} chat={self.chat_id}>"
+
+
+class QueueGroupMemberModel(Base):
+    __tablename__ = "queue_group_members"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    group_id = Column(
+        Integer,
+        ForeignKey("queue_groups.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    queue_id = Column(
+        Integer,
+        ForeignKey("queues.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    position = Column(Integer, nullable=False)
+
+    __table_args__ = (
+        Index("ix_queue_group_members_group_queue", "group_id", "queue_id", unique=True),
+    )
+
+    def __repr__(self):
+        return f"<QueueGroupMember group={self.group_id} queue={self.queue_id}>"
+
+
 class ChatAdminModel(Base):
     __tablename__ = "chat_admins"
 

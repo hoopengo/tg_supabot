@@ -18,6 +18,7 @@ from bot.keyboards.queue_kb import (
 import html
 
 from bot.services import queue_service
+from bot.services import group_service
 from bot.services.auto_delete import (
     delete_messages_later,
     PANEL_INACTIVITY_TIMEOUT,
@@ -260,6 +261,7 @@ async def cb_admin_open(
     if success:
         await _update_admin_panel(callback.message, queue_id, page)
         await _update_queue_live_message_by_bot(bot, queue_id)
+        await group_service.on_queue_updated(bot, queue_id)
 
 
 @admin_router.callback_query(AdminCallback.filter(F.action == "close"), IsAdminFilter())
@@ -273,6 +275,7 @@ async def cb_admin_close(
     if success:
         await _update_admin_panel(callback.message, queue_id, page)
         await _update_queue_live_message_by_bot(bot, queue_id)
+        await group_service.on_queue_updated(bot, queue_id)
 
 
 @admin_router.callback_query(AdminCallback.filter(F.action == "clear"), IsAdminFilter())
@@ -286,6 +289,7 @@ async def cb_admin_clear(
     if success:
         await _update_admin_panel(callback.message, queue_id, page)
         await _update_queue_live_message_by_bot(bot, queue_id)
+        await group_service.on_queue_updated(bot, queue_id)
 
 
 @admin_router.callback_query(
@@ -304,6 +308,7 @@ async def cb_admin_remove_member(
     if success:
         await _update_admin_panel(callback.message, queue_id, page)
         await _update_queue_live_message_by_bot(bot, queue_id)
+        await group_service.on_queue_updated(bot, queue_id)
 
 
 @admin_router.callback_query(
@@ -322,6 +327,7 @@ async def cb_admin_move_up(
     if success:
         await _update_admin_panel(callback.message, queue_id, page)
         await _update_queue_live_message_by_bot(bot, queue_id)
+        await group_service.on_queue_updated(bot, queue_id)
 
 
 @admin_router.callback_query(
@@ -340,6 +346,7 @@ async def cb_admin_move_down(
     if success:
         await _update_admin_panel(callback.message, queue_id, page)
         await _update_queue_live_message_by_bot(bot, queue_id)
+        await group_service.on_queue_updated(bot, queue_id)
 
 
 @admin_router.callback_query(
@@ -362,6 +369,9 @@ async def cb_admin_delete(
     queue = await queue_service.get_queue(queue_id)
     chat_id = queue.chat_id if queue else None
     message_id = queue.message_id if queue else None
+
+    # Notify groups BEFORE deleting the queue (needs queue data)
+    await group_service.on_queue_deleted(bot, queue_id)
 
     success, msg = await queue_service.delete_queue(queue_id, callback.from_user.id)
     await callback.answer(msg, show_alert=not success)

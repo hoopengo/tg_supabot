@@ -15,6 +15,7 @@ from bot.keyboards.queue_kb import (
     swap_list_keyboard,
 )
 from bot.services import admin_service, queue_service, swap_service
+from bot.services import group_service
 from bot.services.auto_delete import (
     delete_command_and_response,
     delete_messages_later,
@@ -132,6 +133,7 @@ async def cb_queue_join(
             owner=owner,
         )
         await _update_main_queue_message(bot, queue_id, owner=owner)
+        await group_service.on_queue_updated(bot, queue_id)
 
 
 @queue_router.callback_query(QueueCallback.filter(F.action == "leave"))
@@ -155,6 +157,7 @@ async def cb_queue_leave(
             owner=owner,
         )
         await _update_main_queue_message(bot, queue_id, owner=owner)
+        await group_service.on_queue_updated(bot, queue_id)
 
 
 @queue_router.callback_query(QueueCallback.filter(F.action == "swap_list"))
@@ -238,6 +241,7 @@ async def cb_swap_confirm(
         queue_id = callback_data.queue_id
         await _update_queue_message(callback.message, queue_id)
         await _update_main_queue_message(bot, queue_id)
+        await group_service.on_queue_updated(bot, queue_id)
         try:
             await callback.message.delete()
         except Exception:

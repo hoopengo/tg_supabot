@@ -31,6 +31,7 @@ COMMANDS = [
     BotCommand(command="create_queue", description="Создать очередь"),
     BotCommand(command="queues", description="Список очередей"),
     BotCommand(command="switch", description="Поменяться местами"),
+    BotCommand(command="group", description="Создать группу очередей"),
     BotCommand(command="admin", description="Панель администратора"),
     BotCommand(command="superadmin", description="Панель супер-админа"),
     BotCommand(command="add_admin", description="Добавить админа"),

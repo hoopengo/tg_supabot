@@ -3,6 +3,7 @@
 from bot.handlers.admin import admin_router
 from bot.handlers.ai import ai_router
 from bot.handlers.casino import router as casino_router
+from bot.handlers.group import group_router
 from bot.handlers.mentions import mentions_router
 from bot.handlers.owner import owner_router
 from bot.handlers.penis import penis_router
@@ -21,6 +22,7 @@ routers_list = (
     super_admin_router,
     admin_router,
     settings_router,
+    group_router,
     queue_router,
     start_router,
     sticker_router,

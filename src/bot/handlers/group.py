@@ -282,15 +282,22 @@ async def cb_group_confirm(callback: CallbackQuery, bot: Bot):
     # Create the group
     group = await group_service.create_group(chat_id, queue_ids, user_id)
 
+    # Save thread_id before deleting the selection message
+    thread_id = callback.message.message_thread_id
+
     # Delete the selection message
     try:
         await callback.message.delete()
     except Exception:
         pass
 
-    # Send the group message
+    # Send the group message in the same topic
     text = await group_service.render_group(group.id)
-    sent = await bot.send_message(chat_id, text, parse_mode=ParseMode.HTML)
+    sent = await bot.send_message(
+        chat_id, text,
+        parse_mode=ParseMode.HTML,
+        message_thread_id=thread_id,
+    )
 
     # Save message_id
     await group_repo.update_group_message_id(group.id, sent.message_id)

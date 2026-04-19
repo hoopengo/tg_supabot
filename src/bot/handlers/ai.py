@@ -37,9 +37,12 @@ _client = AsyncOpenAI(
 
 SYSTEM_PROMPT = (
     "Ты — полезный ассистент группового чата в Telegram. "
-    "Тебе передаётся история последних сообщений чата и вопрос пользователя. "
+    "Тебе передаётся ПОЛНАЯ доступная история сообщений чата и вопрос пользователя.\n"
     "Отвечай на русском языке, кратко и по делу.\n\n"
-    "Каждое сообщение в истории помечено идентификатором #msg_<id>.\n"
+    "ВАЖНО: Анализируй ВСЮ историю чата целиком, от самого начала до конца. "
+    "Ответ может находиться в ЛЮБОЙ части истории, не только в последних сообщениях. "
+    "Внимательно просмотри все сообщения перед тем, как ответить.\n\n"
+    "Каждое сообщение в истории помечено идентификатором #msg_<id> и временной меткой.\n"
     "Если ты ссылаешься на конкретное сообщение из истории — вызови функцию "
     "reply_to с id этого сообщения. Бот автоматически сделает reply, чтобы "
     "пользователь мог перейти к нему в чате.\n"
@@ -186,6 +189,26 @@ async def ai_command(message: Message):
         resp_message = response.choices[0].message
         answer = resp_message.content or ""
         reply_to_msg_id = _extract_tool_reply_id(resp_message)
+
+        # If the model returned a tool call without text content,
+        # send the tool result back and get the final text answer.
+        if not answer and resp_message.tool_calls:
+            # Build follow-up messages with tool results
+            follow_up = list(llm_messages)
+            follow_up.append(resp_message.model_dump(exclude_none=True))
+            for tool_call in resp_message.tool_calls:
+                follow_up.append({
+                    "role": "tool",
+                    "tool_call_id": tool_call.id,
+                    "content": json.dumps({"status": "ok"}),
+                })
+
+            response2 = await _client.chat.completions.create(
+                model=LOGFARE_MODEL,
+                messages=follow_up,
+            )
+            answer = response2.choices[0].message.content or ""
+
     except Exception as e:
         logger.error(f"AI request failed: {e}", exc_info=True)
         bot_msg = await message.answer(
@@ -197,8 +220,6 @@ async def ai_command(message: Message):
 
     if not answer:
         answer = "AI не вернул ответ."
-        if reply_to_msg_id is not None:
-            answer = "."
 
     # Decide what to reply to: referenced message, or the user's /ask command
     target_msg_id = reply_to_msg_id if reply_to_msg_id else message.message_id

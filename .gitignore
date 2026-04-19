@@ -86,3 +86,4 @@ data
 .trunk/
 .kilo/
 .ruff_cache/
+.claude/

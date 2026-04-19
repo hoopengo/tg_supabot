@@ -2,6 +2,7 @@
 
 import json
 import logging
+from datetime import datetime, timezone
 
 from aiogram.types import Message
 
@@ -76,7 +77,12 @@ async def get_chat_history(chat_id: int, max_chars: int = MAX_CONTEXT_CHARS) -> 
             continue
 
         mid = data.get("mid", "?")
-        line = f"#msg_{mid} [{data['name']}]: {data['text']}"
+        ts = data.get("ts")
+        time_str = ""
+        if ts:
+            dt = datetime.fromtimestamp(ts, tz=timezone.utc)
+            time_str = f" ({dt.strftime('%d.%m %H:%M')})"
+        line = f"#msg_{mid}{time_str} [{data['name']}]: {data['text']}"
         line_len = len(line) + 1  # +1 for newline
 
         if total_chars + line_len > max_chars:

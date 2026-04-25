@@ -9,6 +9,7 @@ from aiogram.filters import Command
 from aiogram.types import Message
 from openai import AsyncOpenAI
 
+from bot.config import config
 from bot.redis import message_cache
 from bot.services.admin_service import is_admin, is_bot_creator, is_super_admin
 from bot.services.auto_delete import delete_command_and_response
@@ -21,7 +22,7 @@ ai_router = Router(name="ai")
 # --- Constants ---
 
 LOGFARE_BASE_URL = "https://logfare.ai/v1"
-LOGFARE_MODEL = "gemini-3-flash"
+LOGFARE_MODEL = "gpt-5.5"
 
 # Rate limits in seconds per role
 COOLDOWN_USER = 30
@@ -32,7 +33,7 @@ REDIS_KEY_PREFIX = "ai_cooldown"
 
 _client = AsyncOpenAI(
     base_url=LOGFARE_BASE_URL,
-    api_key="not-needed",
+    api_key=config.LOGFARE_API_KEY,
 )
 
 SYSTEM_PROMPT = (

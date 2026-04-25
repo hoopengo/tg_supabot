@@ -20,6 +20,7 @@ class Config(BaseSettings):
     REDIS_HOST: str = Field()
     REDIS_PORT: int = Field()
     HF_TOKEN: str = Field()
+    LOGFARE_API_KEY: str = Field()
     BASE_TOXICITY_ENCOURAGE: float = 0.8
 
 

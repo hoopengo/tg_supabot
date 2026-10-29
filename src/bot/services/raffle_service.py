@@ -6,6 +6,7 @@ import re
 from datetime import datetime, timedelta
 
 from aiogram import Bot
+from aiogram.enums import ParseMode
 
 from bot.db.models import RaffleModel, RaffleParticipantModel, RaffleStatus
 from bot.keyboards.raffle_kb import raffle_keyboard
@@ -29,10 +30,14 @@ def _get_raffle_lock(raffle_id: int) -> asyncio.Lock:
 _DURATION_RE = re.compile(r"(\d+)\s*(d|д|h|ч|m|м|s|с)", re.IGNORECASE)
 
 _UNIT_SECONDS = {
-    "d": 86400, "д": 86400,
-    "h": 3600, "ч": 3600,
-    "m": 60, "м": 60,
-    "s": 1, "с": 1,
+    "d": 86400,
+    "д": 86400,
+    "h": 3600,
+    "ч": 3600,
+    "m": 60,
+    "м": 60,
+    "s": 1,
+    "с": 1,
 }
 
 
@@ -70,9 +75,7 @@ async def create_raffle(
         created_by=created_by,
         ends_at=datetime.utcnow() + duration,
     )
-    logger.info(
-        f"Raffle created: id={raffle.id} chat={chat_id} topics={topic_count}"
-    )
+    logger.info(f"Raffle created: id={raffle.id} chat={chat_id} topics={topic_count}")
     return raffle
 
 
@@ -134,11 +137,7 @@ async def get_participants(raffle_id: int) -> list[RaffleParticipantModel]:
 
 
 def _display_name(participant: RaffleParticipantModel) -> str:
-    return (
-        participant.first_name
-        or participant.username
-        or str(participant.user_id)
-    )
+    return participant.first_name or participant.username or str(participant.user_id)
 
 
 async def render_raffle(raffle: RaffleModel) -> str:
@@ -178,7 +177,10 @@ async def refresh_raffle_message(bot: Bot, raffle: RaffleModel) -> None:
             text,
             chat_id=raffle.chat_id,
             message_id=raffle.message_id,
-            reply_markup=raffle_keyboard(raffle.id, active=raffle.status == RaffleStatus.ACTIVE),
+            reply_markup=raffle_keyboard(
+                raffle.id, active=raffle.status == RaffleStatus.ACTIVE
+            ),
+            parse_mode=ParseMode.HTML,
         )
     except Exception as e:
         if "message is not modified" not in str(e):
@@ -213,12 +215,8 @@ async def finish_raffle(bot: Bot, raffle_id: int) -> None:
         lines = ["🎉 <b>Итоги розыгрыша</b>", ""]
         for participant in participants:
             name = html.escape(_display_name(participant))
-            mention = (
-                f'<a href="tg://user?id={participant.user_id}">{name}</a>'
-            )
-            lines.append(f"  📌 Тема {participant.topic_number} — {mention}")
-        lines.append("")
-        lines.append("Удачных докладов!")
+            mention = f'<a href="tg://user?id={participant.user_id}">{name}</a>'
+            lines.append(f"📌 Тема {participant.topic_number} — {mention}")
         result_text = "\n".join(lines)
     else:
         result_text = "🎲 Розыгрыш завершён. Участников не было."
@@ -229,11 +227,14 @@ async def finish_raffle(bot: Bot, raffle_id: int) -> None:
                 result_text,
                 chat_id=raffle.chat_id,
                 message_id=raffle.message_id,
+                parse_mode=ParseMode.HTML,
             )
         except Exception as e:
             logger.warning(f"Failed to edit raffle result message: {e}")
             try:
-                await bot.send_message(raffle.chat_id, result_text)
+                await bot.send_message(
+                    raffle.chat_id, result_text, parse_mode=ParseMode.HTML
+                )
             except Exception as e2:
                 logger.error(f"Failed to send raffle result: {e2}")
 

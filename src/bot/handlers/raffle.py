@@ -8,9 +8,9 @@ from bot.filters.queue_admin import IsGroupChatFilter
 from bot.keyboards.raffle_kb import RaffleCallback, raffle_keyboard
 from bot.services import admin_service, raffle_service
 from bot.services.auto_delete import (
+    PANEL_INACTIVITY_TIMEOUT,
     delete_command_and_response,
     delete_messages_later,
-    PANEL_INACTIVITY_TIMEOUT,
 )
 
 logger = logging.getLogger(__name__)
@@ -145,9 +145,7 @@ async def cmd_raffle_stop(message: Message, bot: Bot):
 
     success, msg = await raffle_service.cancel_raffle(raffle.id, user_id)
     if success and raffle.message_id:
-        await delete_messages_later(
-            bot, chat_id, [raffle.message_id], delay=2
-        )
+        await delete_messages_later(bot, chat_id, [raffle.message_id], delay=2)
     bot_msg = await message.answer(msg)
     await delete_messages_later(
         bot, chat_id, [bot_msg.message_id], delay=PANEL_INACTIVITY_TIMEOUT

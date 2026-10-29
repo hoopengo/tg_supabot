@@ -25,13 +25,4 @@ def raffle_keyboard(raffle_id: int, active: bool = True) -> InlineKeyboardMarkup
             ]
         )
 
-    rows.append(
-        [
-            InlineKeyboardButton(
-                text="✖ Закрыть",
-                callback_data=RaffleCallback(action="close", raffle_id=raffle_id).pack(),
-            ),
-        ]
-    )
-
     return InlineKeyboardMarkup(inline_keyboard=rows)

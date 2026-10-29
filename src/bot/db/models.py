@@ -34,6 +34,12 @@ class SwapStatus(str, PyEnum):
     EXPIRED = "expired"
 
 
+class RaffleStatus(str, PyEnum):
+    ACTIVE = "active"
+    FINISHED = "finished"
+    CANCELLED = "cancelled"
+
+
 class AdminRole(str, PyEnum):
     SUPER_ADMIN = "super_admin"
     ADMIN = "admin"
@@ -217,6 +223,50 @@ class QueueGroupMemberModel(Base):
 
     def __repr__(self):
         return f"<QueueGroupMember group={self.group_id} queue={self.queue_id}>"
+
+
+class RaffleModel(Base):
+    __tablename__ = "raffles"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    chat_id = Column(BigInteger, nullable=False, index=True)
+    message_id = Column(BigInteger, nullable=True)
+    topic_count = Column(Integer, nullable=False)
+    status = Column(
+        Enum(RaffleStatus, values_callable=_enum_values),
+        nullable=False,
+        default=RaffleStatus.ACTIVE,
+    )
+    created_by = Column(BigInteger, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    ends_at = Column(DateTime, nullable=False, index=True)
+
+    def __repr__(self):
+        return f"<Raffle {self.id} chat={self.chat_id} topics={self.topic_count}>"
+
+
+class RaffleParticipantModel(Base):
+    __tablename__ = "raffle_participants"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    raffle_id = Column(
+        Integer,
+        ForeignKey("raffles.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id = Column(BigInteger, nullable=False)
+    username = Column(String(255), nullable=True)
+    first_name = Column(String(255), nullable=True)
+    joined_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    topic_number = Column(Integer, nullable=True)
+
+    __table_args__ = (
+        Index("ix_raffle_participants_raffle_user", "raffle_id", "user_id", unique=True),
+    )
+
+    def __repr__(self):
+        return f"<RaffleParticipant raffle={self.raffle_id} user={self.user_id}>"
 
 
 class ChatAdminModel(Base):

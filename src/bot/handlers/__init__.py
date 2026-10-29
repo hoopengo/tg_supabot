@@ -8,6 +8,7 @@ from bot.handlers.mentions import mentions_router
 from bot.handlers.owner import owner_router
 from bot.handlers.penis import penis_router
 from bot.handlers.queues import queue_router
+from bot.handlers.raffle import raffle_router
 from bot.handlers.sanitary import sanitary_router
 from bot.handlers.settings import settings_router
 from bot.handlers.start import start_router
@@ -24,6 +25,7 @@ routers_list = (
     settings_router,
     group_router,
     queue_router,
+    raffle_router,
     start_router,
     sticker_router,
     mentions_router,

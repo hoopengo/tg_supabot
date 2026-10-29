@@ -17,7 +17,7 @@ from bot.middlewares.flood_control import FloodControlMiddleware
 from bot.middlewares.message_history import MessageHistoryMiddleware
 from bot.middlewares.toxicity_middleware import ToxicityMessageMiddleware
 from bot.middlewares.user_exist import UserExistCallbackMiddleware
-from bot.services import apshed, broadcaster
+from bot.services import apshed, broadcaster, raffle_service
 
 COMMANDS = [
     BotCommand(command="start", description="Начало работы"),
@@ -32,6 +32,8 @@ COMMANDS = [
     BotCommand(command="queues", description="Список очередей"),
     BotCommand(command="switch", description="Поменяться местами"),
     BotCommand(command="group", description="Создать группу очередей"),
+    BotCommand(command="raffle", description="Розыгрыш тем для докладов"),
+    BotCommand(command="raffle_stop", description="Отменить розыгрыш"),
     BotCommand(command="admin", description="Панель администратора"),
     BotCommand(command="superadmin", description="Панель супер-админа"),
     BotCommand(command="add_admin", description="Добавить админа"),
@@ -57,6 +59,12 @@ def setup_scheduler(bot: Bot):
         day_of_week="mon-sun",
         hour=16,
         minute=00,
+        kwargs={"bot": bot},
+    )
+    scheduler.add_job(
+        raffle_service.check_due_raffles,
+        trigger="interval",
+        seconds=30,
         kwargs={"bot": bot},
     )
     scheduler.start()

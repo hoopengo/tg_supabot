@@ -9,10 +9,13 @@ __all__ = [
     "QueueGroupMemberModel",
     "ChatAdminModel",
     "AuditLogModel",
+    "RaffleModel",
+    "RaffleParticipantModel",
     "ChatSettingsModel",
     "QueueStatus",
     "MemberStatus",
     "SwapStatus",
+    "RaffleStatus",
     "AdminRole",
 ]
 
@@ -29,9 +32,12 @@ from .models import (
     QueueGroupMemberModel,
     ChatAdminModel,
     AuditLogModel,
+    RaffleModel,
+    RaffleParticipantModel,
     ChatSettingsModel,
     QueueStatus,
     MemberStatus,
     SwapStatus,
+    RaffleStatus,
     AdminRole,
 )

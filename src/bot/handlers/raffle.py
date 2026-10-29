@@ -1,6 +1,7 @@
 import logging
 
 from aiogram import Bot, F, Router
+from aiogram.enums import ParseMode
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery, Message
 
@@ -78,7 +79,7 @@ async def cmd_raffle(message: Message, bot: Bot):
 
     text = await raffle_service.render_raffle(raffle)
     kb = raffle_keyboard(raffle.id, active=True)
-    sent = await message.answer(text, reply_markup=kb)
+    sent = await message.answer(text, reply_markup=kb, parse_mode=ParseMode.HTML)
     await raffle_service.update_raffle_message_id(raffle.id, sent.message_id)
 
     await delete_messages_later(message.bot, chat_id, [message.message_id], delay=2)
@@ -103,16 +104,13 @@ async def cb_raffle_toggle(
     raffle = await raffle_service.get_raffle(raffle_id)
     if not raffle:
         return
-    if now_participating:
-        emoji = "🎲"
-    else:
-        emoji = "🚪"
     try:
         await callback.message.edit_text(
             await raffle_service.render_raffle(raffle),
             reply_markup=raffle_keyboard(
                 raffle_id, active=raffle.status.value == "active"
             ),
+            parse_mode=ParseMode.HTML,
         )
     except Exception as e:
         if "message is not modified" not in str(e):

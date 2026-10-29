@@ -199,6 +199,7 @@ async def finish_raffle(bot: Bot, raffle_id: int) -> None:
             return
 
         participants = await raffle_repo.get_participants(raffle_id)
+        random.shuffle(participants)
         assigned = random.sample(
             range(1, raffle.topic_count + 1), min(len(participants), raffle.topic_count)
         )
@@ -213,10 +214,19 @@ async def finish_raffle(bot: Bot, raffle_id: int) -> None:
     participants = await raffle_repo.get_participants(raffle_id)
     if participants:
         lines = ["🎉 <b>Итоги розыгрыша</b>", ""]
-        for participant in participants:
+        with_topic = [p for p in participants if p.topic_number is not None]
+        without_topic = [p for p in participants if p.topic_number is None]
+        for participant in sorted(with_topic, key=lambda p: p.topic_number):
             name = html.escape(_display_name(participant))
             mention = f'<a href="tg://user?id={participant.user_id}">{name}</a>'
             lines.append(f"📌 Тема {participant.topic_number} — {mention}")
+        if without_topic:
+            names = ", ".join(
+                f'<a href="tg://user?id={p.user_id}">{html.escape(_display_name(p))}</a>'
+                for p in without_topic
+            )
+            lines.append("")
+            lines.append(f"Без темы: {names}")
         result_text = "\n".join(lines)
     else:
         result_text = "🎲 Розыгрыш завершён. Участников не было."

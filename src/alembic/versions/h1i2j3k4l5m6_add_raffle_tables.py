@@ -24,7 +24,7 @@ def upgrade() -> None:
         sa.Column("chat_id", sa.BigInteger(), nullable=False),
         sa.Column("message_id", sa.BigInteger(), nullable=True),
         sa.Column("topic_count", sa.Integer(), nullable=False),
-        sa.Column("status", sa.String(length=32), nullable=False),
+        sa.Column("status", sa.Enum("active", "finished", "cancelled", name="rafflestatus"), nullable=False),
         sa.Column("created_by", sa.BigInteger(), nullable=False),
         sa.Column(
             "created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()
@@ -65,3 +65,4 @@ def downgrade() -> None:
     op.drop_index("ix_raffles_ends_at", table_name="raffles")
     op.drop_index("ix_raffles_chat_id", table_name="raffles")
     op.drop_table("raffles")
+    sa.Enum(name="rafflestatus").drop(op.get_bind())
